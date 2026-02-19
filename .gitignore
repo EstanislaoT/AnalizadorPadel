@@ -1,0 +1,237 @@
+# 🎾 Analizador de Pádel - .gitignore
+
+# ===================
+# Backend (.NET)
+# ===================
+
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Bb]in/
+[Oo]bj/
+
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Rider
+.idea/
+
+# User-specific files
+*.rsuser
+*.suo
+*.user
+*.userprefs
+
+# Build Results
+*_i.c
+*_p.c
+*_h.h
+*.ilk
+*.meta
+*.obj
+*.iobj
+*.pch
+*.pdb
+*.ipdb
+*.pgc
+*.pgd
+*.rsp
+*.sbr
+*.tlb
+*.tli
+*.tlh
+*.tmp
+*.tmp_proj
+*_wpftmp.csproj
+*.log
+*.tlog
+*.vspscc
+*.vssscc
+.builds
+*.pidb
+*.svclog
+*.scc
+
+# NuGet
+packages/
+*.nupkg
+*.snupkg
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# .NET Core
+publish/
+*.pubxml
+*.publishproj
+
+# Coverage
+coverage/
+*.lcov
+*.coverage
+*.coveragexml
+
+# ===================
+# Frontend (React/Node)
+# ===================
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build
+dist/
+build/
+.next/
+out/
+
+# Testing
+coverage/
+
+# Misc
+.DS_Store
+*.pem
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+logs/
+
+# Vite
+.vite/
+
+# ===================
+# Python
+# ===================
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+
+# Distribution / packaging
+.Python
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# ===================
+# Docker
+# ===================
+
+# Docker volumes (local)
+postgres_data/
+uploads/
+frontend_build/
+
+# ===================
+# IDE / Editors
+# ===================
+
+# VS Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# JetBrains
+.idea/
+*.iml
+
+# Sublime Text
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+
+# ===================
+# OS Files
+# ===================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+
+# ===================
+# Project Specific
+# ===================
+
+# Uploaded videos
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# YOLO models (large files)
+backend/models/*.pt
+!backend/models/.gitkeep
+
+# Generated OpenAPI
+backend/openapi.json
+
+# Test results
+TestResults/
+*.trx
+
+# Temporary processing files
+*.tmp
+*.temp
+*.cache
+
+# ===================
+# Secrets (IMPORTANT)
+# ===================
+
+# Never commit secrets
+*.pfx
+*.key
+secrets.json
+appsettings.Development.json
