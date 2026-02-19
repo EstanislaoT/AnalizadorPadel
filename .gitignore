@@ -221,6 +221,10 @@ backend/openapi.json
 TestResults/
 *.trx
 
+# Test videos for Spike 1
+test-videos/
+runs/
+
 # Temporary processing files
 *.tmp
 *.temp
