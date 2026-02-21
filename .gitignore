@@ -225,6 +225,10 @@ TestResults/
 test-videos/
 runs/
 
+# YOLO model weights
+*.pt
+yolov8*.pt
+
 # Temporary processing files
 *.tmp
 *.temp
