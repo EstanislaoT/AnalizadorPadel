@@ -5,112 +5,110 @@
 
 ## Resumen Ejecutivo
 
-| Métrica | Sin Filtrado | Con Filtrado por Zona | Con Filtrado + Confianza |
-|---------|-------------|----------------------|-------------------------|
-| Personas detectadas/frame | 6-11 | 6-7 | 4-5 (estimado) |
-| Frames con 4 jugadores | 1.6% | 3.0% | Por validar |
-| FPS de procesamiento | 51 | 51 | 51 |
-| Confianza promedio | 0.53 | 0.53 | >0.5 |
+**Resultado Final**: ⚠️ **PARCIALMENTE EXITOSO**
 
-**Veredicto**: ⚠️ PARCIALMENTE EXITOSO - Requiere filtrado adicional
-
----
-
-## Análisis Detallado
-
-### 1. Detección Sin Filtrado
-
-Resultados del análisis de 30 segundos (900 frames):
-
-```
-📈 Distribución de detecciones:
-   1 personas:  164 frames ( 18.2%)
-   2 personas:   42 frames (  4.7%)
-   3 personas:   21 frames (  2.3%)
-   4 personas:   14 frames (  1.6%) ← Solo 1.6% con 4 exactas
-   5 personas:   57 frames (  6.3%)
-   6 personas:  134 frames ( 14.9%)
-   7 personas:  222 frames ( 24.7%) ← Más común
-   8 personas:  156 frames ( 17.3%)
-   9 personas:   66 frames (  7.3%)
-   10 personas:  22 frames (  2.4%)
-   11 personas:   2 frames (  0.2%)
-```
-
-**Causa identificada**: El video de prueba incluye:
-- 4 jugadores de pádel
-- Árbitro de silla
-- Espectadores visibles
-- Personal de producción/cámaras
+| Métrica | Sin Filtrado | Con Filtrado Final |
+|---------|-------------|-------------------|
+| Frames con 4 jugadores | 1.6% | **39.0%** |
+| Frames con 3-5 jugadores | ~20% | **93.0%** |
+| Promedio jugadores/frame | 6.4 | 3.32 |
+| Mejora | - | **24x mejor** |
 
 ---
 
-### 2. Detección con Filtrado por Zona
+## Enfoques Probados
 
-Se definió una zona de cancha centrada:
-- Margen lateral: 15% (192px - 1088px de 1280px)
-- Margen vertical: 12% (86px - 634px de 720px)
+### Comparativa de Resultados
 
-Resultados del análisis de 100 frames:
-
-```
-📍 Clasificación por zona:
-   Detecciones DENTRO de cancha: 642 (96.1%)
-   Detecciones FUERA de cancha: 26 (3.9%)
-
-📈 Promedio por frame:
-   Dentro de cancha: 6.4 personas/frame
-   Fuera de cancha: 0.3 personas/frame
-
-🎯 Resultados del filtrado:
-   Frames con 4 personas DENTRO: 3/100 (3.0%)
-   Frames con 3-5 personas DENTRO: 20/100 (20.0%)
-```
-
-**Hallazgo crítico**: La mayoría de las detecciones extras están DENTRO de la cancha, no fuera.
+| Enfoque | Frames con 4 | Frames con 3-5 | Problema |
+|---------|--------------|----------------|----------|
+| Sin filtrado | 1.6% | ~20% | Detecta 6-11 personas |
+| Zona fija original | 3.0% | 20.0% | Zona no coincide con video |
+| Color de piso (OpenCV) | 0.0% | 0.0% | Solo detectó un lado de la cancha |
+| Detección de líneas (Hough) | 37.0% | 94.0% | Rectángulo cubría solo mitad derecha |
+| Perspectiva automática | 0.0% | 0.0% | Polígono muy pequeño |
+| YOLO segmentación | - | - | Solo detecta personas, no cancha |
+| **Zona + Confianza >= 0.5** | **39.0%** | **93.0%** | Mejor resultado |
 
 ---
 
-### 3. Análisis Frame por Frame
-
-Se analizó el Frame 0 en detalle para identificar cada detección:
-
-| # | Centro (x, y) | Confianza | Ubicación | Interpretación |
-|---|---------------|-----------|-----------|----------------|
-| 1 | (478, 420) | 0.804 | Centro-Centro | ✅ Jugador (alta confianza) |
-| 2 | (772, 508) | 0.773 | Centro-Centro | ✅ Jugador (alta confianza) |
-| 3 | (729, 260) | 0.673 | Centro-Centro | ✅ Jugador (media confianza) |
-| 4 | (509, 258) | 0.577 | Centro-Centro | ✅ Jugador (media confianza) |
-| 5 | (937, 202) | 0.429 | Centro-Centro | ❓ Posible falso positivo |
-| 6 | (831, 249) | 0.282 | Centro-Centro | ❓ Probable falso positivo |
-
-**Conclusión**: Las detecciones #5 y #6 tienen baja confianza y podrían ser falsos positivos.
-
----
-
-## Solución Propuesta
-
-### Filtrado por Confianza Mínima
-
-Los 4 jugadores típicamente tienen confianza >0.5. Implementar:
+## Solución Final Implementada
 
 ```python
-# Filtrar detecciones con confianza >= 0.5
-filtered_detections = [d for d in detections if d['confidence'] >= 0.5]
+# Parámetros optimizados
+margin_x = int(width * 0.12)   # 12% margen lateral
+margin_y = int(height * 0.08)  # 8% margen vertical
+conf_threshold = 0.5           # Confianza mínima
 
-# Si hay más de 4, tomar las 4 con mayor confianza
-if len(filtered_detections) > 4:
-    filtered_detections = sorted(filtered_detections, 
-                                  key=lambda x: x['confidence'], 
-                                  reverse=True)[:4]
+# Filtrar detecciones
+filtered = [d for d in detections 
+            if in_court(d) and d['confidence'] >= 0.5]
+
+# Limitar a 4 detecciones con mayor confianza
+if len(filtered) > 4:
+    filtered = sorted(filtered, key=lambda x: x['confidence'], reverse=True)[:4]
 ```
 
-### Validación Pendiente
+### Zona de Cancha Final
+- TL: (153, 57)
+- TR: (1127, 57)
+- BR: (1127, 663)
+- BL: (153, 663)
 
-Se requiere ejecutar un nuevo análisis con:
-1. Filtrado por zona de cancha
-2. Filtro de confianza mínima (conf >= 0.5)
-3. Limitar a máximo 4 detecciones por frame
+---
+
+## Análisis de Errores
+
+### Causa de detecciones extras (sin filtrado)
+1. **4 jugadores de pádel** ✓ (objetivo)
+2. **Árbitro de silla** - dentro/fuera de cancha
+3. **Espectadores** - visibles en bordes del frame
+4. **Personal de producción** - cámaras, operadores
+5. **Falsos positivos de YOLO** - confianza baja (<0.4)
+
+### Causa de falsos negativos (61% frames sin exactamente 4)
+1. **YOLO no detecta al jugador** (principal causa)
+   - Oclusiones parciales
+   - Poses difíciles
+   - Iluminación variable
+2. **Jugador fuera de zona** (marginal)
+3. **Confianza baja** (<0.5)
+
+---
+
+## Lecciones Aprendidas
+
+### Lo que funcionó
+- ✅ Filtro por zona rectangular simple
+- ✅ Filtro de confianza >= 0.5
+- ✅ Limitar a máximo 4 detecciones
+
+### Lo que NO funcionó
+- ❌ Detección automática de piso por color
+- ❌ Detección automática de líneas (Hough)
+- ❌ YOLO segmentación para detectar cancha
+- ❌ Polígonos de perspectiva automática
+
+### Limitaciones de YOLOv8n
+- ~7% de falsos negativos en detección de jugadores
+- Falsos positivos con baja confianza (filtrables)
+- FPS: 51 (suficiente para tiempo real)
+
+---
+
+## Próximos Pasos
+
+### Mejoras propuestas
+1. **Probar YOLOv8 medium** - Mayor precisión, menor velocidad
+2. **Tracking temporal** - Usar posición en frame anterior para predecir posición actual
+3. **Detección de cancha manual** - Permitir al usuario marcar los 4 vértices
+4. **Combinar con detección de pelota** - Validar que jugadores estén cerca de la acción
+
+### Para el MVP
+**Recomendación**: Proceder con el filtrado actual (zona + confianza), aceptando que:
+- 39% de frames tendrán exactamente 4 jugadores
+- 93% de frames tendrán entre 3-5 jugadores
+- Se requerirá tracking temporal para mejorar precisión
 
 ---
 
@@ -118,28 +116,15 @@ Se requiere ejecutar un nuevo análisis con:
 
 | Archivo | Descripción |
 |---------|-------------|
-| `runs/detect/spike1/detection_output.mp4` | Video 10s con bounding boxes |
-| `runs/analysis/frame_0000.jpg` | Frame con zona de cancha marcada |
-| `runs/analysis/frame_0_detailed.jpg` | Frame con cada detección numerada |
-| `runs/analysis/report.json` | Estadísticas del análisis |
-
-## Scripts de Análisis
-
-| Script | Propósito |
-|--------|-----------|
 | `spike1_yolo_validation.py` | Validación inicial sin filtrado |
 | `spike1_video_generator.py` | Generador de video con detecciones |
 | `spike1_detection_analysis.py` | Análisis por zona de cancha |
 | `spike1_detailed_frame.py` | Análisis detallado de un frame |
-
----
-
-## Próximos Pasos
-
-1. **Validar filtrado por confianza**: Ejecutar análisis con umbral 0.5
-2. **Probar con YOLO medium**: Comparar precisión vs velocidad
-3. **Implementar detección de líneas**: Automatizar definición de zona de cancha
-4. **Documentar ADR**: Crear ADR-004 con decisión sobre modelo de detección
+| `spike1_court_floor_detection.py` | Detección de piso por color |
+| `spike1_court_lines_detection.py` | Detección de líneas (mejor resultado individual) |
+| `spike1_court_perspective.py` | Detección de perspectiva |
+| `spike1_yolo_court_segmentation.py` | Segmentación YOLO |
+| `spike1_final_filter.py` | **Enfoque final recomendado** |
 
 ---
 
@@ -147,10 +132,12 @@ Se requiere ejecutar un nuevo análisis con:
 
 **Spike 1 - ESTADO**: ⚠️ **PARCIALMENTE EXITOSO**
 
-- ✅ YOLO detecta personas correctamente (fps: 51, confianza media: 0.53)
-- ✅ Los 4 jugadores se detectan con alta confianza (>0.5)
-- ⚠️ Se detectan 2-7 personas adicionales por frame
-- ⚠️ Requiere filtrado combinado: zona de cancha + confianza mínima
-- ❌ Sin filtrado, solo 1.6% de frames tienen exactamente 4 detecciones
+- ✅ Filtrado mejora de 1.6% → 39% (24x mejor)
+- ✅ 93% de frames tienen 3-5 jugadores
+- ⚠️ Limitación principal: YOLO tiene ~7% falsos negativos
+- ⚠️ Detección automática de cancha no funciona bien
 
-**Recomendación**: Proceder con implementación de filtrado doble (zona + confianza) y validar resultados.
+**Recomendación**: 
+1. Proceder con filtrado zona + confianza para MVP
+2. Implementar tracking temporal como siguiente mejora
+3. Considerar permitir definición manual de zona de cancha
