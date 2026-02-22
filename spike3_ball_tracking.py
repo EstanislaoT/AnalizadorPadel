@@ -55,6 +55,13 @@ KALMAN_MEASUREMENT_NOISE = 1e-1
 # Frames máximos sin detectar antes de considerar "perdida"
 MAX_FRAMES_MISSING_BALL = 10
 
+# Velocidad máxima válida para pelota de pádel (m/s)
+# ~120 km/h es velocidad máxima realista
+MAX_BALL_VELOCITY = 30.0
+
+# Velocidad mínima para considerar que la pelota está en movimiento
+MIN_BALL_VELOCITY = 0.5
+
 
 @dataclass
 class BallState:
@@ -208,61 +215,154 @@ def detect_ball_by_hough(frame: np.ndarray, search_region: Tuple[int, int, int, 
     return candidates
 
 
+def detect_ball_by_motion(
+    prev_frame: np.ndarray,
+    curr_frame: np.ndarray,
+    polygon: np.ndarray,
+    ball_state: BallState,
+    px_to_m: float,
+    fps: float
+) -> List[Tuple[float, float, float]]:
+    """
+    Detecta la pelota por movimiento entre frames.
+    
+    La pelota en movimiento aparece como un objeto que se desplaza
+    entre frames consecutivos.
+    
+    Returns:
+        Lista de (x, y, radius) de candidatos en movimiento
+    """
+    if prev_frame is None:
+        return []
+    
+    # Convertir a escala de grises
+    prev_gray = cv2.cvtColor(prev_frame, cv2.COLOR_BGR2GRAY)
+    curr_gray = cv2.cvtColor(curr_frame, cv2.COLOR_BGR2GRAY)
+    
+    # Calcular diferencia absoluta
+    diff = cv2.absdiff(prev_gray, curr_gray)
+    
+    # Umbral para detectar movimiento
+    _, thresh = cv2.threshold(diff, 25, 255, cv2.THRESH_BINARY)
+    
+    # Dilatar para conectar regiones
+    kernel = np.ones((5, 5), np.uint8)
+    thresh = cv2.dilate(thresh, kernel, iterations=2)
+    
+    # Encontrar contornos de movimiento
+    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    candidates = []
+    for contour in contours:
+        area = cv2.contourArea(contour)
+        if area < 10 or area > 500:  # Muy pequeño o muy grande
+            continue
+        
+        (x, y), radius = cv2.minEnclosingCircle(contour)
+        
+        # Verificar que esté dentro de la cancha
+        if not point_in_polygon((x, y), polygon):
+            continue
+        
+        # Verificar radio
+        if BALL_RADIUS_RANGE_PX[0] <= radius <= BALL_RADIUS_RANGE_PX[1]:
+            # Verificar que la velocidad sea válida
+            if ball_state.position is not None:
+                dist_px = distance((x, y), ball_state.position)
+                velocity = dist_px * px_to_m * fps
+                if velocity > MAX_BALL_VELOCITY:
+                    continue
+            
+            candidates.append((x, y, radius))
+    
+    return candidates
+
+
 def detect_ball_combined(
     frame: np.ndarray,
     ball_state: BallState,
     frame_idx: int,
+    polygon: np.ndarray,
+    prev_frame: np.ndarray = None,
+    px_to_m: float = 0.02,
+    fps: float = 30.0,
     search_radius: int = 100
 ) -> Optional[Tuple[float, float, float]]:
     """
-    Detecta la pelota combinando color y forma.
+    Detecta la pelota combinando color, forma y movimiento.
     
-    Prioriza detecciones cerca de la predicción de Kalman.
+    Prioriza:
+    1. Candidatos dentro de la cancha
+    2. Candidatos con velocidad válida
+    3. Detecciones cerca de la predicción de Kalman
     
     Returns:
         (x, y, radius) de la mejor detección, o None
     """
     all_candidates = []
     
-    # 1. Detección por color
+    # 1. Detección por movimiento (más confiable para pelota en juego)
+    motion_candidates = detect_ball_by_motion(prev_frame, frame, polygon, ball_state, px_to_m, fps)
+    all_candidates.extend(motion_candidates)
+    
+    # 2. Detección por color (solo dentro de la cancha)
     for color_name in BALL_COLOR_RANGES.keys():
         color_candidates = detect_ball_by_color(frame, color_name)
-        all_candidates.extend(color_candidates)
+        for x, y, r in color_candidates:
+            if point_in_polygon((x, y), polygon):
+                all_candidates.append((x, y, r))
     
-    # 2. Detección por Hough en toda la imagen
+    # 3. Detección por Hough (solo dentro de la cancha)
     hough_candidates = detect_ball_by_hough(frame)
-    all_candidates.extend(hough_candidates)
+    for x, y, r in hough_candidates:
+        if point_in_polygon((x, y), polygon):
+            all_candidates.append((x, y, r))
     
     if not all_candidates:
+        return None
+    
+    # Filtrar por velocidad válida si hay estado previo
+    valid_candidates = []
+    for x, y, r in all_candidates:
+        if ball_state.position is not None:
+            dist_px = distance((x, y), ball_state.position)
+            velocity = dist_px * px_to_m * fps
+            if velocity <= MAX_BALL_VELOCITY:
+                valid_candidates.append((x, y, r))
+        else:
+            valid_candidates.append((x, y, r))
+    
+    if not valid_candidates:
         return None
     
     # Si hay estado previo, priorizar candidatos cerca de la predicción
     if ball_state.position is not None:
         pred_x, pred_y = ball_state.predict()
         
-        # Calcular distancia a la predicción para cada candidato
+        # Calcular score para cada candidato
         scored_candidates = []
-        for x, y, r in all_candidates:
+        for x, y, r in valid_candidates:
             dist = np.sqrt((x - pred_x)**2 + (y - pred_y)**2)
-            # Score inversamente proporcional a la distancia
             score = 1.0 / (1.0 + dist)
             scored_candidates.append((score, x, y, r))
         
-        # Ordenar por score (mayor = mejor)
         scored_candidates.sort(reverse=True)
         
-        # Filtrar por distancia máxima
+        # Retornar el mejor candidato dentro del radio de búsqueda
         for score, x, y, r in scored_candidates:
             dist = np.sqrt((x - pred_x)**2 + (y - pred_y)**2)
             if dist < search_radius:
                 return (x, y, r)
+        
+        # Si no hay candidato cercano, permitir cualquier candidato válido
+        # (la pelota puede haber rebotado o cambiado de dirección bruscamente)
+        if valid_candidates:
+            # Retornar el mejor candidato aunque esté lejos de la predicción
+            return scored_candidates[0][1], scored_candidates[0][2], scored_candidates[0][3]
     
-    # Si no hay estado previo, retornar el candidato más pequeño (probablemente pelota)
-    if all_candidates:
-        all_candidates.sort(key=lambda c: c[2])  # Ordenar por radio
-        return all_candidates[0]
-    
-    return None
+    # Si no hay estado previo, retornar el candidato más pequeño
+    valid_candidates.sort(key=lambda c: c[2])
+    return valid_candidates[0] if valid_candidates else None
 
 
 def point_in_polygon(point, polygon):
@@ -349,6 +449,7 @@ def analyze_with_ball_tracking(
     }
     
     frame_count = 0
+    prev_frame = None
     
     print(f"\n🔍 Analizando {max_frames} frames con tracking de pelota...")
     
@@ -360,8 +461,11 @@ def analyze_with_ball_tracking(
         # Dibujar cancha
         cv2.polylines(frame, [polygon], True, (255, 255, 0), 2)
         
-        # Detectar pelota
-        ball_detection = detect_ball_combined(frame, ball_state, frame_count)
+        # Detectar pelota (con nuevos parámetros)
+        ball_detection = detect_ball_combined(
+            frame, ball_state, frame_count, polygon, 
+            prev_frame, px_to_m, fps
+        )
         
         if ball_detection:
             bx, by, br = ball_detection
@@ -446,6 +550,8 @@ def analyze_with_ball_tracking(
         if frame_count % 100 == 0:
             print(f"   Frame {frame_count}: Ball {'detected' if ball_detection else 'not detected'}")
         
+        # Guardar frame actual para la siguiente iteración
+        prev_frame = frame.copy()
         frame_count += 1
     
     cap.release()
