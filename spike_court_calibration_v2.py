@@ -63,6 +63,14 @@ class CourtCalibratorV2:
         self.dragging_corner = None
         self.corner_radius = 15
         
+        # Rastrear último punto modificado por lado
+        # 'left': 'TL' o 'BL' - último modificado del lado izquierdo
+        # 'right': 'TR' o 'BR' - último modificado del lado derecho
+        self.last_modified = {'left': None, 'right': None}
+        
+        # Última posición de los puntos de red (para calcular delta en arrastre)
+        self._last_net_position = {'NL': None, 'NR': None}
+        
         # Ventana
         self.window_name = "Calibración de Cancha v2 - Arrastra las esquinas"
         
@@ -98,16 +106,193 @@ class CourtCalibratorV2:
                 'NR': [(self.corners['TR'][0] + self.corners['BR'][0]) // 2,
                        (self.corners['TR'][1] + self.corners['BR'][1]) // 2]
             }
+        
+        # Guardar posición inicial de los puntos de red
+        self._last_net_position['NL'] = self.net_corners['NL'].copy()
+        self._last_net_position['NR'] = self.net_corners['NR'].copy()
+    
+    def _recalculate_net_point(self, net_point: str):
+        """
+        Recalcula un punto de la red basándose en el punto medio 
+        de las esquinas del mismo lado.
+        """
+        if net_point == 'NL':
+            # NL está en el punto medio del lado izquierdo (TL-BL)
+            self.net_corners['NL'] = [
+                (self.corners['TL'][0] + self.corners['BL'][0]) // 2,
+                (self.corners['TL'][1] + self.corners['BL'][1]) // 2
+            ]
+        elif net_point == 'NR':
+            # NR está en el punto medio del lado derecho (TR-BR)
+            self.net_corners['NR'] = [
+                (self.corners['TR'][0] + self.corners['BR'][0]) // 2,
+                (self.corners['TR'][1] + self.corners['BR'][1]) // 2
+            ]
+    
+    def _update_corner_from_net_drag(self, net_corner_name: str, new_x: int, new_y: int):
+        """
+        Actualiza las esquinas de la cancha cuando se arrastra un punto de la red.
+        
+        Cuando se arrastra un punto de red, se mueve la esquina opuesta a la última
+        modificada del mismo lado, manteniendo la proporción de perspectiva.
+        
+        Args:
+            net_corner_name: 'NL' (izquierda) o 'NR' (derecha)
+            new_x: Nueva coordenada X del punto de red
+            new_y: Nueva coordenada Y del punto de red
+        """
+        # Actualizar el punto de red
+        self.net_corners[net_corner_name] = [new_x, new_y]
+        
+        if net_corner_name == 'NL':
+            self._update_left_side_from_net()
+        elif net_corner_name == 'NR':
+            self._update_right_side_from_net()
+    
+    def _update_left_side_from_net(self):
+        """
+        Actualiza las esquinas del lado izquierdo (TL, BL) cuando se arrastra NL.
+        Usa homografía para calcular la posición correcta considerando la perspectiva.
+        """
+        fixed = self.last_modified['left']
+        
+        if fixed == 'TL':
+            # TL fijo, calcular BL usando homografía
+            self._update_corner_with_homography('BL')
+        elif fixed == 'BL':
+            # BL fijo, calcular TL usando homografía
+            self._update_corner_with_homography('TL')
+        else:
+            # Ninguno fue modificado, mover ambos proporcionalmente
+            dx = self.net_corners['NL'][0] - self._last_net_position['NL'][0]
+            dy = self.net_corners['NL'][1] - self._last_net_position['NL'][1]
+            
+            self.corners['TL'][0] += dx
+            self.corners['TL'][1] += dy * 0.5
+            self.corners['BL'][0] += dx
+            self.corners['BL'][1] += dy * 0.5
+            self._recalculate_net_point('NL')
+    
+    def _update_right_side_from_net(self):
+        """
+        Actualiza las esquinas del lado derecho (TR, BR) cuando se arrastra NR.
+        Usa homografía para calcular la posición correcta considerando la perspectiva.
+        """
+        fixed = self.last_modified['right']
+        
+        if fixed == 'TR':
+            # TR fijo, calcular BR usando homografía
+            self._update_corner_with_homography('BR')
+        elif fixed == 'BR':
+            # BR fijo, calcular TR usando homografía
+            self._update_corner_with_homography('TR')
+        else:
+            # Ninguno fue modificado, mover ambos proporcionalmente
+            dx = self.net_corners['NR'][0] - self._last_net_position['NR'][0]
+            dy = self.net_corners['NR'][1] - self._last_net_position['NR'][1]
+            
+            self.corners['TR'][0] += dx
+            self.corners['TR'][1] += dy * 0.5
+            self.corners['BR'][0] += dx
+            self.corners['BR'][1] += dy * 0.5
+            self._recalculate_net_point('NR')
+    
+    def _update_corner_with_homography(self, corner_to_calculate: str):
+        """
+        Calcula la posición de una esquina usando homografía.
+        
+        Usa 5 puntos conocidos (3 esquinas fijas + 2 puntos de red) para calcular
+        la homografía y luego proyectar la esquina faltante.
+        
+        Args:
+            corner_to_calculate: 'TL', 'TR', 'BL' o 'BR' - la esquina a calcular
+        """
+        # Mapeo de esquinas a coordenadas en metros
+        corner_coords = {
+            'TL': [0, 0],
+            'TR': [10, 0],
+            'BR': [10, 20],
+            'BL': [0, 20]
+        }
+        
+        # Determinar qué esquinas están "fijas" (las 3 que no vamos a calcular)
+        all_corners = ['TL', 'TR', 'BR', 'BL']
+        fixed_corners = [c for c in all_corners if c != corner_to_calculate]
+        
+        # Construir puntos fuente (coordenadas en metros)
+        # Usamos: 3 esquinas fijas + 2 puntos de red = 5 puntos
+        dst_points = []
+        src_points = []
+        
+        for corner in fixed_corners:
+            dst_points.append(corner_coords[corner])
+            src_points.append(self.corners[corner])
+        
+        # Agregar puntos de red
+        dst_points.append([0, 10])   # NL
+        dst_points.append([10, 10])  # NR
+        src_points.append(self.net_corners['NL'])
+        src_points.append(self.net_corners['NR'])
+        
+        dst_points = np.array(dst_points, dtype=np.float32)
+        src_points = np.array(src_points, dtype=np.float32)
+        
+        # Calcular homografía con 5 puntos
+        H, _ = cv2.findHomography(dst_points, src_points)
+        
+        if H is not None:
+            # Proyectar la esquina que falta
+            corner_dst = np.array([corner_coords[corner_to_calculate]], dtype=np.float32).reshape(-1, 1, 2)
+            corner_pixel = cv2.perspectiveTransform(corner_dst, H).reshape(2)
+            self.corners[corner_to_calculate] = [int(corner_pixel[0]), int(corner_pixel[1])]
+    
+    def _get_perspective_ratio(self, side: str) -> float:
+        """
+        Calcula el ratio de perspectiva de un lado de la cancha.
+        
+        El ratio es la proporción entre la distancia del punto de red a la esquina
+        inferior vs la distancia de la esquina superior al punto de red.
+        
+        Args:
+            side: 'left' para el lado izquierdo (TL-BL), 'right' para el derecho (TR-BR)
+            
+        Returns:
+            Ratio de perspectiva (distancia inferior / distancia superior)
+        """
+        if side == 'left':
+            tl = np.array(self.corners['TL'], dtype=np.float32)
+            bl = np.array(self.corners['BL'], dtype=np.float32)
+            nl = np.array(self.net_corners['NL'], dtype=np.float32)
+            
+            dist_tl_nl = np.linalg.norm(nl - tl)
+            dist_nl_bl = np.linalg.norm(bl - nl)
+            
+            return dist_nl_bl / dist_tl_nl if dist_tl_nl > 0 else 1.0
+            
+        elif side == 'right':
+            tr = np.array(self.corners['TR'], dtype=np.float32)
+            br = np.array(self.corners['BR'], dtype=np.float32)
+            nr = np.array(self.net_corners['NR'], dtype=np.float32)
+            
+            dist_tr_nr = np.linalg.norm(nr - tr)
+            dist_nr_br = np.linalg.norm(br - nr)
+            
+            return dist_nr_br / dist_tr_nr if dist_tr_nr > 0 else 1.0
+        
+        return 1.0
     
     def get_corners_array(self) -> np.ndarray:
-        """Retorna las esquinas como array numpy."""
+        """Retorna las esquinas como array de numpy para dibujar."""
         return np.array([
             self.corners['TL'], self.corners['TR'],
             self.corners['BR'], self.corners['BL']
         ], dtype=np.int32)
     
-    def get_corner_at(self, x: int, y: int) -> str:
-        """Retorna el nombre de la esquina si el punto está cerca."""
+    def get_corner_at(self, x: int, y: int):
+        """
+        Verifica si hay una esquina de la cancha o punto de red en la posición (x, y).
+        Retorna: ('corner', nombre) o ('net', nombre) o None
+        """
         # Primero verificar esquinas de la cancha
         for name, pt in self.corners.items():
             dist = np.sqrt((x - pt[0])**2 + (y - pt[1])**2)
@@ -298,6 +483,8 @@ class CourtCalibratorV2:
                     self.dragging_corner = corner_name
                 elif corner_type == 'net':
                     self.dragging_net_corner = corner_name
+                    # Guardar posición actual para calcular delta
+                    self._last_net_position[corner_name] = self.net_corners[corner_name].copy()
                 
         elif event == cv2.EVENT_LBUTTONUP:
             self.dragging_corner = None
@@ -306,10 +493,17 @@ class CourtCalibratorV2:
         elif event == cv2.EVENT_MOUSEMOVE:
             if self.dragging_corner:
                 self.corners[self.dragging_corner] = [x, y]
+                # Registrar como último modificado del lado correspondiente
+                if self.dragging_corner in ['TL', 'BL']:
+                    self.last_modified['left'] = self.dragging_corner
+                elif self.dragging_corner in ['TR', 'BR']:
+                    self.last_modified['right'] = self.dragging_corner
                 # Recalcular puntos de red cuando se mueven las esquinas
                 self._calculate_initial_net_points()
+                
             elif self.dragging_net_corner:
-                self.net_corners[self.dragging_net_corner] = [x, y]
+                # Actualizar esquinas usando la función refactorizada
+                self._update_corner_from_net_drag(self.dragging_net_corner, x, y)
     
     def run(self) -> dict:
         """Ejecuta la herramienta de calibración."""
