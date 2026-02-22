@@ -1,143 +1,155 @@
 # Spike 1 - Resultados de Validación de YOLO en Videos de Pádel
 
-**Fecha**: 19-21 Febrero 2026  
-**Objetivo**: Confirmar que YOLO v8 detecta correctamente los 4 jugadores en videos reales de pádel con cámara cenital.
+**Fecha**: 21 Febrero 2026  
+**Objetivo**: Confirmar que YOLO detecta correctamente los 4 jugadores en videos reales de pádel con cámara cenital.
 
 ## Resumen Ejecutivo
 
-**Resultado Final**: ⚠️ **PARCIALMENTE EXITOSO**
+**Resultado Final**: ✅ **EXITOSO**
 
-| Métrica | Sin Filtrado | Con Filtrado Final |
-|---------|-------------|-------------------|
-| Frames con 4 jugadores | 1.6% | **39.0%** |
-| Frames con 3-5 jugadores | ~20% | **93.0%** |
-| Promedio jugadores/frame | 6.4 | 3.32 |
-| Mejora | - | **24x mejor** |
+| Métrica | Sin Filtrado | Con YOLOv8m |
+|---------|-------------|-------------|
+| Frames con 4 jugadores | 1.6% | **99.0%** |
+| Frames con 3-5 jugadores | ~20% | **100%** |
+| Promedio jugadores/frame | 6.4 | 3.99 |
+| Mejora | - | **62x mejor** |
 
 ---
 
-## Enfoques Probados
+## Comparativa de Modelos YOLO
 
-### Comparativa de Resultados
+| Modelo | Frames con 4 | Promedio | Tamaño | Recomendación |
+|--------|-------------|----------|--------|---------------|
+| YOLOv8n | 37% | 3.30 | 6.3MB | Baseline |
+| YOLOv26n | 0% | 2.10 | 5.3MB | ❌ No usar |
+| YOLOv8s | 73% | 3.73 | 21.5MB | ✅ Bueno |
+| YOLOv11n | 42% | 3.35 | 5.4MB | ✅ Rápido |
+| YOLOv11s | 82% | 3.82 | 18.4MB | ✅ Muy bueno |
+| YOLOv26s | 58% | 3.57 | 19.5MB | ⚠️ Regular |
+| **YOLOv8m** | **99%** | **3.99** | 49.7MB | ✅ **GANADOR** |
+| YOLOv11m | 93% | 3.93 | 38.8MB | ✅ Alternativa eficiente |
+| YOLOv26m | 89% | 3.89 | 42.2MB | ⚠️ Regular |
 
-| Enfoque | Frames con 4 | Frames con 3-5 | Problema |
-|---------|--------------|----------------|----------|
-| Sin filtrado | 1.6% | ~20% | Detecta 6-11 personas |
-| Zona fija original | 3.0% | 20.0% | Zona no coincide con video |
-| Color de piso (OpenCV) | 0.0% | 0.0% | Solo detectó un lado de la cancha |
-| Detección de líneas (Hough) | 37.0% | 94.0% | Rectángulo cubría solo mitad derecha |
-| Perspectiva automática | 0.0% | 0.0% | Polígono muy pequeño |
-| YOLO segmentación | - | - | Solo detecta personas, no cancha |
-| **Zona + Confianza >= 0.5** | **39.0%** | **93.0%** | Mejor resultado |
+### Ganador: YOLOv8m
+
+**99% de frames con exactamente 4 jugadores detectados.**
 
 ---
 
 ## Solución Final Implementada
 
+### 1. Selección Manual de Cancha
+Como la cámara está fija, el usuario selecciona los 4 vértices de la cancha una sola vez:
 ```python
-# Parámetros optimizados
-margin_x = int(width * 0.12)   # 12% margen lateral
-margin_y = int(height * 0.08)  # 8% margen vertical
-conf_threshold = 0.5           # Confianza mínima
-
-# Filtrar detecciones
-filtered = [d for d in detections 
-            if in_court(d) and d['confidence'] >= 0.5]
-
-# Limitar a 4 detecciones con mayor confianza
-if len(filtered) > 4:
-    filtered = sorted(filtered, key=lambda x: x['confidence'], reverse=True)[:4]
+# Archivo: spike1_manual_selection.py
+# Genera: runs/manual_court/court_corners.json
 ```
 
-### Zona de Cancha Final
-- TL: (153, 57)
-- TR: (1127, 57)
-- BR: (1127, 663)
-- BL: (153, 663)
+### 2. Filtrado por Posición de Pies
+Se verifica si los **pies** del jugador (parte inferior del bbox) están dentro del polígono:
+```python
+cy_bottom = y2  # Coordenada Y inferior (pies)
+in_court = point_in_polygon((cx, cy_bottom), polygon)
+```
+
+### 3. Non-Maximum Suppression (NMS)
+Elimina detecciones duplicadas del mismo jugador:
+```python
+def nms(detections, iou_threshold=0.3):
+    # Elimina detecciones con IoU > threshold
+```
+
+### 4. YOLOv8m con Tracking
+Modelo medium con tracking temporal:
+```python
+model = YOLO('yolov8m.pt')
+results = model.track(frame, classes=[0], persist=True, conf=0.5)
+```
 
 ---
 
-## Análisis de Errores
+## Archivos Principales
 
-### Causa de detecciones extras (sin filtrado)
-1. **4 jugadores de pádel** ✓ (objetivo)
-2. **Árbitro de silla** - dentro/fuera de cancha
-3. **Espectadores** - visibles en bordes del frame
-4. **Personal de producción** - cámaras, operadores
-5. **Falsos positivos de YOLO** - confianza baja (<0.4)
+| Archivo | Descripción |
+|---------|-------------|
+| `spike1_manual_selection.py` | Selección interactiva de los 4 vértices de la cancha |
+| `spike1_tracking.py` | Filtrado de jugadores con YOLOv8m + Tracking |
+| `spike1_examples.py` | Generador de ejemplos visuales |
+| `runs/manual_court/court_corners.json` | Coordenadas de la cancha |
 
-### Causa de falsos negativos (61% frames sin exactamente 4)
-1. **YOLO no detecta al jugador** (principal causa)
-   - Oclusiones parciales
-   - Poses difíciles
-   - Iluminación variable
-2. **Jugador fuera de zona** (marginal)
-3. **Confianza baja** (<0.5)
+---
+
+## Análisis de Detección por Jugador
+
+Con YOLOv8m, los 4 jugadores se detectan consistentemente:
+
+| Track ID | Detecciones | Porcentaje |
+|----------|-------------|------------|
+| ID 1 | 100/100 | 100% |
+| ID 2 | 99/100 | 99% |
+| ID 3 | 100/100 | 100% |
+| ID 4 | 100/100 | 100% |
+
+**Nota**: El jugador más lejano (del fondo) es el más difícil de detectar, pero YOLOv8m lo detecta en el 100% de los frames.
 
 ---
 
 ## Lecciones Aprendidas
 
 ### Lo que funcionó
-- ✅ Filtro por zona rectangular simple
-- ✅ Filtro de confianza >= 0.5
-- ✅ Limitar a máximo 4 detecciones
+- ✅ **Selección manual de cancha** (cámara fija)
+- ✅ **Filtrado por pies** (no centro del bbox)
+- ✅ **Non-Maximum Suppression (NMS)**
+- ✅ **YOLOv8m** - modelo medium para objetos lejanos
+- ✅ **Tracking temporal** con `model.track()`
 
 ### Lo que NO funcionó
 - ❌ Detección automática de piso por color
 - ❌ Detección automática de líneas (Hough)
 - ❌ YOLO segmentación para detectar cancha
 - ❌ Polígonos de perspectiva automática
+- ❌ Filtrado por centro del bbox
+- ❌ **YOLOv26** en todas sus variantes (n, s, m)
 
-### Limitaciones de YOLOv8n
-- ~7% de falsos negativos en detección de jugadores
-- Falsos positivos con baja confianza (filtrables)
-- FPS: 51 (suficiente para tiempo real)
-
----
-
-## Próximos Pasos
-
-### Mejoras propuestas
-1. **Probar YOLOv8 medium** - Mayor precisión, menor velocidad
-2. **Tracking temporal** - Usar posición en frame anterior para predecir posición actual
-3. **Detección de cancha manual** - Permitir al usuario marcar los 4 vértices
-4. **Combinar con detección de pelota** - Validar que jugadores estén cerca de la acción
-
-### Para el MVP
-**Recomendación**: Proceder con el filtrado actual (zona + confianza), aceptando que:
-- 39% de frames tendrán exactamente 4 jugadores
-- 93% de frames tendrán entre 3-5 jugadores
-- Se requerirá tracking temporal para mejorar precisión
+### Hallazgos clave
+- Los jugadores del fondo son más difíciles de detectar (más lejanos/más pequeños)
+- YOLOv8m supera a YOLOv11m y YOLOv26m
+- Los modelos "small" (s) son un buen balance entre velocidad y precisión
+- El tracking de YOLO no "inventa" detecciones, solo mantiene IDs
 
 ---
 
-## Archivos Generados
+## Recomendaciones
 
-| Archivo | Descripción |
-|---------|-------------|
-| `spike1_yolo_validation.py` | Validación inicial sin filtrado |
-| `spike1_video_generator.py` | Generador de video con detecciones |
-| `spike1_detection_analysis.py` | Análisis por zona de cancha |
-| `spike1_detailed_frame.py` | Análisis detallado de un frame |
-| `spike1_court_floor_detection.py` | Detección de piso por color |
-| `spike1_court_lines_detection.py` | Detección de líneas (mejor resultado individual) |
-| `spike1_court_perspective.py` | Detección de perspectiva |
-| `spike1_yolo_court_segmentation.py` | Segmentación YOLO |
-| `spike1_final_filter.py` | **Enfoque final recomendado** |
+### Para Producción
+1. **Modelo recomendado**: YOLOv8m (99% precisión) o YOLOv11m (93% precisión, 22% más pequeño)
+2. **Confianza mínima**: 0.5
+3. **IoU threshold para NMS**: 0.3
+4. **Máximo jugadores**: 4 (limitar después de filtrar)
+
+### Para Mejorar Performance
+1. Considerar YOLOv11m si el tamaño del modelo es crítico (38MB vs 49MB)
+2. Implementar cache de detecciones para frames consecutivos similares
+3. Considerar GPU para procesamiento en tiempo real
 
 ---
 
 ## Conclusión
 
-**Spike 1 - ESTADO**: ⚠️ **PARCIALMENTE EXITOSO**
+**Spike 1 - ESTADO**: ✅ **EXITOSO**
 
-- ✅ Filtrado mejora de 1.6% → 39% (24x mejor)
-- ✅ 93% de frames tienen 3-5 jugadores
-- ⚠️ Limitación principal: YOLO tiene ~7% falsos negativos
-- ⚠️ Detección automática de cancha no funciona bien
+- ✅ **99% de frames con exactamente 4 jugadores**
+- ✅ 100% de frames con 3-5 jugadores
+- ✅ Detección de cancha correcta con selección manual
+- ✅ NMS elimina duplicados
+- ✅ Tracking temporal mantiene IDs consistentes
 
-**Recomendación**: 
-1. Proceder con filtrado zona + confianza para MVP
-2. Implementar tracking temporal como siguiente mejora
-3. Considerar permitir definición manual de zona de cancha
+**La combinación YOLOv8m + filtrado por pies + NMS logra detección casi perfecta.**
+
+---
+
+## Próximos Pasos
+
+1. **Spike 2**: Análisis de movimiento de jugadores
+2. **Spike 3**: Detección de eventos de juego (golpes, pelota)
+3. **MVP**: Integración en pipeline de procesamiento
