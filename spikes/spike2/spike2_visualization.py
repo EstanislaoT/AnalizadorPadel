@@ -172,7 +172,7 @@ def draw_court_polygon(frame: np.ndarray, polygon: np.ndarray) -> np.ndarray:
 
 def create_visualization_video(video_path: str,
                                corners_path: str,
-                               output_path: str = "runs/spike2/visualization.mp4",
+                               output_path: str = "../runs/spike2/visualization.mp4",
                                max_frames: int = 500,
                                conf_threshold: float = 0.5) -> Dict:
     """
@@ -376,7 +376,7 @@ def create_visualization_video(video_path: str,
 
 if __name__ == "__main__":
     video_path = "test-videos/Final Reserve Cup Miami 2026 (720p, h264).mp4"
-    corners_path = "runs/manual_court/court_corners.json"
+    corners_path = "../runs/manual_court/court_corners.json"
     
     print("🎬 Spike 2 - Visualización de Trayectorias\n")
     print("="*60)
@@ -384,7 +384,7 @@ if __name__ == "__main__":
     results = create_visualization_video(
         video_path=video_path,
         corners_path=corners_path,
-        output_path="runs/spike2/visualization.mp4",
+        output_path="../runs/spike2/visualization.mp4",
         max_frames=500,
         conf_threshold=0.5
     )

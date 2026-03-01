@@ -16,7 +16,7 @@ import json
 from dataclasses import dataclass, field
 from typing import List, Dict, Tuple, Optional
 
-os.makedirs('runs/spike3_ball', exist_ok=True)
+os.makedirs('../runs/spike3_ball', exist_ok=True)
 
 # Cargar modelo YOLOS globalmente para evitar recargas
 _yolos_model = None
@@ -157,7 +157,7 @@ def point_in_polygon(point, polygon):
 def analyze_with_yolos(
     video_path: str,
     corners_path: str,
-    output_dir: str = "runs/spike3_ball",
+    output_dir: str = "../runs/spike3_ball",
     max_frames: int = 500,
     confidence_threshold: float = 0.3
 ) -> Dict:
@@ -339,7 +339,7 @@ if __name__ == "__main__":
     
     video_path = sys.argv[1]
     corners_path = sys.argv[2]
-    output_dir = sys.argv[3] if len(sys.argv) > 3 else "runs/spike3_ball"
+    output_dir = sys.argv[3] if len(sys.argv) > 3 else "../runs/spike3_ball"
     
     print("🎾 Spike 3 - Tracking de Pelota con YOLOS")
     print("=" * 60)

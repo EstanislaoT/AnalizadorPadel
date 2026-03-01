@@ -248,8 +248,8 @@ def main():
     cv2.destroyAllWindows()
     
     # Guardar frame con detección
-    cv2.imwrite('runs/spike3_ball/debug_frame.jpg', frame)
-    print(f"\n💾 Frame guardado en: runs/spike3_ball/debug_frame.jpg")
+    cv2.imwrite('../runs/spike3_ball/debug_frame.jpg', frame)
+    print(f"\n💾 Frame guardado en: ../runs/spike3_ball/debug_frame.jpg")
 
 
 if __name__ == "__main__":

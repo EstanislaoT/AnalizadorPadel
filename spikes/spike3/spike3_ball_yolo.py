@@ -20,8 +20,8 @@ from typing import List, Dict, Tuple, Optional
 
 # Configuración
 VIDEO_PATH = "test-videos/ProPadel2.mp4"
-CORNERS_PATH = "runs/court_propadel2/court_corners.json"
-OUTPUT_DIR = "runs/spike3_ball_yolo"
+CORNERS_PATH = "../runs/court_propadel2/court_corners.json"
+OUTPUT_DIR = "../runs/spike3_ball_yolo"
 MAX_FRAMES = 300  # ~10 segundos a 30fps
 
 # Clase 37 en COCO = sports ball

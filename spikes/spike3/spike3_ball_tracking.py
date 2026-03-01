@@ -379,7 +379,7 @@ def distance(p1: Tuple[float, float], p2: Tuple[float, float]) -> float:
 def analyze_with_ball_tracking(
     video_path: str,
     corners_path: str,
-    output_dir: str = "runs/spike3_ball",
+    output_dir: str = "../runs/spike3_ball",
     max_frames: int = 500,
     conf_threshold: float = 0.5,
     detect_players: bool = True
@@ -608,12 +608,12 @@ if __name__ == "__main__":
     if len(sys.argv) < 3:
         print("Uso: python spike3_ball_tracking.py <video_path> <corners_path> [output_dir]")
         print("\nEjemplo:")
-        print('  python spike3_ball_tracking.py "test-videos/ProPadel2.mp4" "runs/court_propadel2/court_corners.json"')
+        print('  python spike3_ball_tracking.py "test-videos/ProPadel2.mp4" "../runs/court_propadel2/court_corners.json"')
         sys.exit(1)
     
     video_path = sys.argv[1]
     corners_path = sys.argv[2]
-    output_dir = sys.argv[3] if len(sys.argv) > 3 else "runs/spike3_ball"
+    output_dir = sys.argv[3] if len(sys.argv) > 3 else "../runs/spike3_ball"
     
     print("🎾 Spike 3 - Tracking de Pelota\n")
     print("="*60)

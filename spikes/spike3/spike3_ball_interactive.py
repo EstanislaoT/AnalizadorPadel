@@ -14,7 +14,7 @@ import sys
 import os
 
 # Crear directorio de salida
-os.makedirs('runs/spike3_ball', exist_ok=True)
+os.makedirs('../runs/spike3_ball', exist_ok=True)
 
 
 def extract_frame(video_path: str, frame_idx: int) -> np.ndarray:
@@ -234,7 +234,7 @@ class BallDebug:
                 self.load_frame()
                 print(f"\n⬅️ Frame {self.frame_idx}")
             elif key == ord('s'):
-                path = f'runs/spike3_ball/debug_frame_{self.frame_idx}.jpg'
+                path = f'../runs/spike3_ball/debug_frame_{self.frame_idx}.jpg'
                 cv2.imwrite(path, display)
                 print(f"💾 Frame guardado en: {path}")
         
@@ -245,7 +245,7 @@ if __name__ == "__main__":
     if len(sys.argv) < 3:
         print("Uso: python spike3_ball_interactive.py <video_path> <corners_path> [frame_idx]")
         print("\nEjemplo:")
-        print('  python spike3_ball_interactive.py "test-videos/ProPadel2.mp4" "runs/court_propadel2_test/court_corners.json" 100')
+        print('  python spike3_ball_interactive.py "test-videos/ProPadel2.mp4" "../runs/court_propadel2_test/court_corners.json" 100')
         sys.exit(1)
     
     video_path = sys.argv[1]

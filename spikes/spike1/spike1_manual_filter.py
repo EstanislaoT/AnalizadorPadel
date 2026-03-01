@@ -98,7 +98,7 @@ def analyze_with_manual_court(video_path: str, corners_path: str, max_frames: in
     
     print(f"   Resolución: {width}x{height}")
     
-    os.makedirs("runs/manual_filter", exist_ok=True)
+    os.makedirs("../runs/manual_filter", exist_ok=True)
     
     all_detections = []
     final_counts = []
@@ -173,7 +173,7 @@ def analyze_with_manual_court(video_path: str, corners_path: str, max_frames: in
             cv2.putText(sample, f"Filtered: {len(filtered)}", (10, 30),
                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
             
-            cv2.imwrite(f"runs/manual_filter/frame_{frame_idx:04d}.jpg", sample)
+            cv2.imwrite(f"../runs/manual_filter/frame_{frame_idx:04d}.jpg", sample)
             print(f"   Frame {frame_idx}: {len(filtered)} jugadores")
     
     cap.release()
@@ -220,7 +220,7 @@ def analyze_with_manual_court(video_path: str, corners_path: str, max_frames: in
         print("❌ Requiere más trabajo")
     print(f"{'='*60}")
     
-    print(f"\n📁 Archivos guardados en runs/manual_filter/")
+    print(f"\n📁 Archivos guardados en ../runs/manual_filter/")
     
     return {
         'total': total,
@@ -233,7 +233,7 @@ def analyze_with_manual_court(video_path: str, corners_path: str, max_frames: in
 
 if __name__ == "__main__":
     video_path = "test-videos/Final Reserve Cup Miami 2026 (720p, h264).mp4"
-    corners_path = "runs/manual_court/court_corners.json"
+    corners_path = "../runs/manual_court/court_corners.json"
     
     print("🏃 Spike 1 - Filtrado con Selección Manual\n")
     print("="*60)

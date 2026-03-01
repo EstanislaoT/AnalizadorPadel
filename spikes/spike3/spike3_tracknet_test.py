@@ -15,7 +15,7 @@ import sys
 import os
 
 # Crear directorio de salida
-os.makedirs('runs/spike3_ball', exist_ok=True)
+os.makedirs('../runs/spike3_ball', exist_ok=True)
 
 
 def check_torch_available():
@@ -285,7 +285,7 @@ def main():
         y += 25
     
     # Guardar resultado
-    output_path = 'runs/spike3_ball/tracknet_test.jpg'
+    output_path = '../runs/spike3_ball/tracknet_test.jpg'
     cv2.imwrite(output_path, display)
     print(f"\n💾 Resultado guardado en: {output_path}")
     

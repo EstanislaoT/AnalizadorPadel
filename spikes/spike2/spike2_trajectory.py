@@ -176,7 +176,7 @@ def generate_heatmap(positions: List[Tuple[float, float]],
 
 def analyze_trajectories(video_path: str, 
                          corners_path: str,
-                         output_dir: str = "runs/spike2",
+                         output_dir: str = "../runs/spike2",
                          max_frames: int = 500,
                          conf_threshold: float = 0.5,
                          fps: float = 30.0) -> Dict:
@@ -457,7 +457,7 @@ def analyze_trajectories(video_path: str,
 
 if __name__ == "__main__":
     video_path = "test-videos/Final Reserve Cup Miami 2026 (720p, h264).mp4"
-    corners_path = "runs/manual_court/court_corners.json"
+    corners_path = "../runs/manual_court/court_corners.json"
     
     print("🏃 Spike 2 - Análisis de Movimiento de Jugadores\n")
     print("="*60)
@@ -465,7 +465,7 @@ if __name__ == "__main__":
     results = analyze_trajectories(
         video_path=video_path,
         corners_path=corners_path,
-        output_dir="runs/spike2",
+        output_dir="../runs/spike2",
         max_frames=500,
         conf_threshold=0.5
     )

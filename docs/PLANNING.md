@@ -322,7 +322,7 @@ Los spikes son experimentos técnicos cortos (1-2 días) para validar riesgos an
 from ultralytics import YOLO
 model = YOLO('yolov8n.pt')
 results = model('partido_padel.mp4', classes=[0], save=True)
-# Revisar el video resultante en runs/detect/
+# Revisar el video resultante en spikes/runs/detect/
 ```
 
 **Criterio de éxito**: Detección correcta de los 4 jugadores en > 85% de los frames en condiciones normales de grabación.

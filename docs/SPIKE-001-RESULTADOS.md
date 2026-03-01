@@ -42,7 +42,7 @@
 Como la cámara está fija, el usuario selecciona los 4 vértices de la cancha una sola vez:
 ```python
 # Archivo: spike1_manual_selection.py
-# Genera: runs/manual_court/court_corners.json
+# Genera: spikes/runs/manual_court/court_corners.json
 ```
 
 ### 2. Filtrado por Posición de Pies
@@ -75,7 +75,7 @@ results = model.track(frame, classes=[0], persist=True, conf=0.5)
 | `spike1_manual_selection.py` | Selección interactiva de los 4 vértices de la cancha |
 | `spike1_tracking.py` | Filtrado de jugadores con YOLOv8m + Tracking |
 | `spike1_examples.py` | Generador de ejemplos visuales |
-| `runs/manual_court/court_corners.json` | Coordenadas de la cancha |
+| `spikes/spikes/runs/manual_court/court_corners.json` | Coordenadas de la cancha |
 
 ---
 

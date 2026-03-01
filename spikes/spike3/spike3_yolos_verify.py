@@ -135,7 +135,7 @@ def main():
         print(f"  {i+1}. {d['label']}: ({d['x']:.0f}, {d['y']:.0f}) conf={d['confidence']:.0%} {court_str}")
     
     # Guardar
-    output_path = 'runs/spike3_ball/yolos_verify.jpg'
+    output_path = '../runs/spike3_ball/yolos_verify.jpg'
     cv2.imwrite(output_path, display)
     print(f"\n💾 Imagen guardada en: {output_path}")
     

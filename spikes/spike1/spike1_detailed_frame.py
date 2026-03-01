@@ -87,7 +87,7 @@ def analyze_single_frame(video_path: str, frame_number: int = 0):
                     cv2.FONT_HERSHEY_SIMPLEX, 1.2, color, 3)
     
     # Guardar
-    output_path = f"runs/analysis/frame_{frame_number}_detailed.jpg"
+    output_path = f"../runs/analysis/frame_{frame_number}_detailed.jpg"
     cv2.imwrite(output_path, output)
     
     print(f"\n{'='*60}")

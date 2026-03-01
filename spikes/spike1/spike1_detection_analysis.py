@@ -46,7 +46,7 @@ def analyze_detections(video_path: str, max_frames: int = 100):
     print(f"   Centro de cancha: ({width//2}, {height//2})")
     
     # Crear directorio para frames de análisis
-    os.makedirs("runs/analysis", exist_ok=True)
+    os.makedirs("../runs/analysis", exist_ok=True)
     
     all_detections = []
     frames_inside_court = []
@@ -114,7 +114,7 @@ def analyze_detections(video_path: str, max_frames: int = 100):
                 cv2.rectangle(sample_frame, (x1, y1), (x2, y2), color, 2)
                 cv2.circle(sample_frame, (cx, cy), 5, color, -1)
             
-            cv2.imwrite(f"runs/analysis/frame_{frame_idx:04d}.jpg", sample_frame)
+            cv2.imwrite(f"../runs/analysis/frame_{frame_idx:04d}.jpg", sample_frame)
             
             print(f"   Frame {frame_idx}: {inside_count} dentro, {outside_count} fuera | Total: {len(frame_detections)}")
     
@@ -202,10 +202,10 @@ def analyze_detections(video_path: str, max_frames: int = 100):
         }
     }
     
-    with open('runs/analysis/report.json', 'w') as f:
+    with open('../runs/analysis/report.json', 'w') as f:
         json.dump(report, f, indent=2)
     
-    print(f"\n📁 Archivos guardados en runs/analysis/")
+    print(f"\n📁 Archivos guardados en ../runs/analysis/")
     print(f"   - Frames de muestra con zonas marcadas")
     print(f"   - report.json con estadísticas completas")
     

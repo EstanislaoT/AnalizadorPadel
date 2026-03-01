@@ -25,7 +25,7 @@ class CourtCalibrator:
     # Dimensiones estándar de cancha de pádel (proporción 2:1)
     COURT_ASPECT_RATIO = 2.0  # largo / ancho = 20m / 10m
     
-    def __init__(self, video_path: str, output_dir: str = "runs/court_calibrated"):
+    def __init__(self, video_path: str, output_dir: str = "../runs/court_calibrated"):
         self.video_path = video_path
         self.output_dir = output_dir
         os.makedirs(output_dir, exist_ok=True)
@@ -288,11 +288,11 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Uso: python spike_court_calibration.py <video_path> [output_dir]")
         print("\nEjemplo:")
-        print('  python spike_court_calibration.py "test-videos/VideoPadelAmateur1.mp4" "runs/court_amateur1"')
+        print('  python spike_court_calibration.py "test-videos/VideoPadelAmateur1.mp4" "../runs/court_amateur1"')
         sys.exit(1)
     
     video_path = sys.argv[1]
-    output_dir = sys.argv[2] if len(sys.argv) > 2 else "runs/court_calibrated"
+    output_dir = sys.argv[2] if len(sys.argv) > 2 else "../runs/court_calibrated"
     
     print("🎯 Herramienta de Calibración Visual de Cancha\n")
     

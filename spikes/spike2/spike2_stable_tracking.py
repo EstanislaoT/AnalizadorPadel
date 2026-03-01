@@ -211,7 +211,7 @@ def assign_player_ids(
 def analyze_with_stable_tracking(
     video_path: str,
     corners_path: str,
-    output_dir: str = "runs/spike2_stable",
+    output_dir: str = "../runs/spike2_stable",
     max_frames: int = 500,
     conf_threshold: float = 0.5
 ) -> Dict:
@@ -464,7 +464,7 @@ def analyze_with_stable_tracking(
 
 if __name__ == "__main__":
     video_path = "test-videos/Final Reserve Cup Miami 2026 (720p, h264).mp4"
-    corners_path = "runs/manual_court/court_corners.json"
+    corners_path = "../runs/manual_court/court_corners.json"
     
     print("🏃 Spike 2 - Tracking Estable con Re-asignación de IDs\n")
     print("="*60)
@@ -472,7 +472,7 @@ if __name__ == "__main__":
     results = analyze_with_stable_tracking(
         video_path=video_path,
         corners_path=corners_path,
-        output_dir="runs/spike2_stable",
+        output_dir="../runs/spike2_stable",
         max_frames=1800,  # ~60 segundos
         conf_threshold=0.5
     )

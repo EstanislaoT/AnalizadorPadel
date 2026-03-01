@@ -11,7 +11,7 @@ import numpy as np
 import sys
 import os
 
-os.makedirs('runs/spike3_ball', exist_ok=True)
+os.makedirs('../runs/spike3_ball', exist_ok=True)
 
 
 def test_owlvit(frame):
@@ -217,7 +217,7 @@ def main():
         y += 25
     
     # Guardar
-    output_path = 'runs/spike3_ball/huggingface_test.jpg'
+    output_path = '../runs/spike3_ball/huggingface_test.jpg'
     cv2.imwrite(output_path, display)
     print(f"\n💾 Resultado guardado en: {output_path}")
     

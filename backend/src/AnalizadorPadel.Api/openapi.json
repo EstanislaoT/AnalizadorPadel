@@ -1,0 +1,293 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "AnalizadorPadel.Api | v1",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:5000/"
+    }
+  ],
+  "paths": {
+    "/api/videos": {
+      "post": {
+        "tags": [
+          "AnalizadorPadel.Api"
+        ],
+        "summary": "Sube un nuevo video",
+        "description": "Permite subir un archivo de video para su posterior análisis",
+        "operationId": "CreateVideo",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "required": [
+                  "file"
+                ],
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "$ref": "#/components/schemas/IFormFile"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "AnalizadorPadel.Api"
+        ],
+        "summary": "Lista todos los videos",
+        "description": "Retorna una lista de todos los videos subidos",
+        "operationId": "GetVideos",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/videos/{id}": {
+      "get": {
+        "tags": [
+          "AnalizadorPadel.Api"
+        ],
+        "summary": "Obtiene un video por ID",
+        "description": "Retorna los detalles de un video específico",
+        "operationId": "GetVideo",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "AnalizadorPadel.Api"
+        ],
+        "summary": "Elimina un video",
+        "description": "Elimina un video y sus archivos asociados",
+        "operationId": "DeleteVideo",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/videos/{id}/analyse": {
+      "post": {
+        "tags": [
+          "AnalizadorPadel.Api"
+        ],
+        "summary": "Inicia el análisis de un video",
+        "description": "Comienza el procesamiento del video para detectar jugadores",
+        "operationId": "StartAnalysis",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/analyses/{id}": {
+      "get": {
+        "tags": [
+          "AnalizadorPadel.Api"
+        ],
+        "summary": "Obtiene un análisis por ID",
+        "description": "Retorna los detalles de un análisis específico",
+        "operationId": "GetAnalysis",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/analyses/{id}/stats": {
+      "get": {
+        "tags": [
+          "AnalizadorPadel.Api"
+        ],
+        "summary": "Obtiene estadísticas del análisis",
+        "description": "Retorna las estadísticas de detección del análisis",
+        "operationId": "GetAnalysisStats",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/analyses/{id}/heatmap": {
+      "get": {
+        "tags": [
+          "AnalizadorPadel.Api"
+        ],
+        "summary": "Obtiene datos del heatmap",
+        "description": "Retorna los datos para visualizar el heatmap de posiciones",
+        "operationId": "GetAnalysisHeatmap",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/analyses/{id}/report": {
+      "get": {
+        "tags": [
+          "AnalizadorPadel.Api"
+        ],
+        "summary": "Obtiene el reporte del análisis",
+        "description": "Retorna la ruta del reporte PDF del análisis",
+        "operationId": "GetAnalysisReport",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/health": {
+      "get": {
+        "tags": [
+          "AnalizadorPadel.Api"
+        ],
+        "summary": "Health check endpoint",
+        "operationId": "HealthCheck",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseOfObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ApiResponseOfObject": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": { }
+        }
+      },
+      "IFormFile": {
+        "type": "string",
+        "format": "binary"
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "AnalizadorPadel.Api"
+    }
+  ]
+}

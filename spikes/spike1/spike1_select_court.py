@@ -6,7 +6,7 @@ Uso:
     python spike1_select_court.py <video_path> [output_dir]
     
 Ejemplo:
-    python spike1_select_court.py "test-videos/FinalPadelPrueba1.mp4" "runs/court_finalpadel"
+    python spike1_select_court.py "test-videos/FinalPadelPrueba1.mp4" "../runs/court_finalpadel"
 """
 
 import cv2
@@ -50,7 +50,7 @@ def mouse_callback(event, x, y, flags, param):
             cv2.imshow("Seleccionar Cancha", current_frame)
 
 
-def select_court_manually(video_path: str, output_dir: str = "runs/manual_court"):
+def select_court_manually(video_path: str, output_dir: str = "../runs/manual_court"):
     """
     Permite al usuario seleccionar los 4 vértices de la cancha manualmente.
     """
@@ -151,11 +151,11 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Uso: python spike1_select_court.py <video_path> [output_dir]")
         print("\nEjemplo:")
-        print('  python spike1_select_court.py "test-videos/FinalPadelPrueba1.mp4" "runs/court_finalpadel"')
+        print('  python spike1_select_court.py "test-videos/FinalPadelPrueba1.mp4" "../runs/court_finalpadel"')
         sys.exit(1)
     
     video_path = sys.argv[1]
-    output_dir = sys.argv[2] if len(sys.argv) > 2 else "runs/manual_court"
+    output_dir = sys.argv[2] if len(sys.argv) > 2 else "../runs/manual_court"
     
     print("🏃 Selección Manual de Cancha\n")
     

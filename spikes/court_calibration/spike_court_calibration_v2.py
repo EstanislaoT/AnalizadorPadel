@@ -25,7 +25,7 @@ import sys
 class CourtCalibratorV2:
     """Calibración de cancha con arrastre directo de esquinas."""
     
-    def __init__(self, video_path: str, output_dir: str = "runs/court_calibrated"):
+    def __init__(self, video_path: str, output_dir: str = "../runs/court_calibrated"):
         self.video_path = video_path
         self.output_dir = output_dir
         os.makedirs(output_dir, exist_ok=True)
@@ -573,11 +573,11 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Uso: python spike_court_calibration_v2.py <video_path> [output_dir]")
         print("\nEjemplo:")
-        print('  python spike_court_calibration_v2.py "test-videos/ProPadel2.mp4" "runs/court_propadel2"')
+        print('  python spike_court_calibration_v2.py "test-videos/ProPadel2.mp4" "../runs/court_propadel2"')
         sys.exit(1)
     
     video_path = sys.argv[1]
-    output_dir = sys.argv[2] if len(sys.argv) > 2 else "runs/court_calibrated"
+    output_dir = sys.argv[2] if len(sys.argv) > 2 else "../runs/court_calibrated"
     
     print("🎯 Calibración de Cancha v2 - Arrastra las esquinas\n")
     

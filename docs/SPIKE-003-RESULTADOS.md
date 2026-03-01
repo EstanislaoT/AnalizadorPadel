@@ -69,8 +69,8 @@ El color HSV detecta:
 **Ratio de precisión estimado**: 968/3229 ≈ 30%
 
 ### Métricas Guardadas
-- Video: `runs/spike3_ball_yolo/ball_detection_yolo.mp4`
-- JSON: `runs/spike3_ball_yolo/metrics.json`
+- Video: `spikes/spikes/runs/spike3_ball_yolo/ball_detection_yolo.mp4`
+- JSON: `spikes/spikes/runs/spike3_ball_yolo/metrics.json`
 
 ---
 
@@ -152,8 +152,8 @@ Instalar y configurar TrackNetV2:
 | Archivo | Descripción |
 |---------|-------------|
 | `spike3_ball_yolo.py` | Script de prueba YOLO vs HSV |
-| `runs/spike3_ball_yolo/ball_detection_yolo.mp4` | Video con detecciones |
-| `runs/spike3_ball_yolo/metrics.json` | Métricas de detección |
+| `spikes/spikes/runs/spike3_ball_yolo/ball_detection_yolo.mp4` | Video con detecciones |
+| `spikes/spikes/runs/spike3_ball_yolo/metrics.json` | Métricas de detección |
 
 ---
 

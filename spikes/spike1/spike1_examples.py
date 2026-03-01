@@ -65,7 +65,7 @@ def save_examples(video_path: str, corners_path: str, conf_threshold: float = 0.
     print(f"📹 Analizando video...")
     cap = cv2.VideoCapture(video_path)
     
-    os.makedirs("runs/examples", exist_ok=True)
+    os.makedirs("../runs/examples", exist_ok=True)
     
     # Guardar hasta 3 ejemplos de cada tipo
     examples_saved = {2: 0, 3: 0, 4: 0}
@@ -123,7 +123,7 @@ def save_examples(video_path: str, corners_path: str, conf_threshold: float = 0.
             cv2.putText(sample, f"Count: {count}", (10, 30),
                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
             
-            filename = f"runs/examples/{count}players_frame{frame_idx:04d}.jpg"
+            filename = f"../runs/examples/{count}players_frame{frame_idx:04d}.jpg"
             cv2.imwrite(filename, sample)
             examples_saved[count] += 1
             print(f"   Guardado: {count} jugadores - frame {frame_idx}")
@@ -138,7 +138,7 @@ def save_examples(video_path: str, corners_path: str, conf_threshold: float = 0.
 
 if __name__ == "__main__":
     video_path = "test-videos/Final Reserve Cup Miami 2026 (720p, h264).mp4"
-    corners_path = "runs/manual_court/court_corners.json"
+    corners_path = "../runs/manual_court/court_corners.json"
     
     print("🏃 Generando ejemplos de detecciones\n")
     save_examples(video_path, corners_path)

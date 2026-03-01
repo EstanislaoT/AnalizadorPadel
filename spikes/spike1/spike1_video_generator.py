@@ -13,7 +13,7 @@ import os
 
 def generate_detection_video(
     video_path: str, 
-    output_path: str = "runs/detect/spike1/detection_output.mp4",
+    output_path: str = "../runs/detect/spike1/detection_output.mp4",
     max_seconds: int = 10
 ):
     """

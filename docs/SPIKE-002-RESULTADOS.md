@@ -93,9 +93,9 @@ python spike2_trajectory.py
 ```
 
 **Output**:
-- `runs/spike2/metrics.json` - Métricas por jugador
-- `runs/spike2/heatmap_player_N.png` - Heatmap por jugador
-- `runs/spike2/heatmap_combined.png` - Heatmap combinado
+- `spikes/spikes/runs/spike2/metrics.json` - Métricas por jugador
+- `spikes/spikes/runs/spike2/heatmap_player_N.png` - Heatmap por jugador
+- `spikes/spikes/runs/spike2/heatmap_combined.png` - Heatmap combinado
 
 ### Generación de Video
 
@@ -104,8 +104,8 @@ python spike2_visualization.py
 ```
 
 **Output**:
-- `runs/spike2/visualization.mp4` - Video con trayectorias
-- `runs/spike2/visualization_metrics.json` - Métricas del video
+- `spikes/spikes/runs/spike2/visualization.mp4` - Video con trayectorias
+- `spikes/spikes/runs/spike2/visualization_metrics.json` - Métricas del video
 
 ---
 

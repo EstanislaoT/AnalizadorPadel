@@ -105,7 +105,7 @@ def select_court_manually(video_path: str):
     
     if len(points) == 4:
         # Guardar resultado
-        os.makedirs("runs/manual_court", exist_ok=True)
+        os.makedirs("../runs/manual_court", exist_ok=True)
         
         result = frame.copy()
         
@@ -124,7 +124,7 @@ def select_court_manually(video_path: str):
         cv2.fillPoly(overlay, [pts], (0, 255, 0))
         cv2.addWeighted(overlay, 0.3, result, 0.7, 0, result)
         
-        cv2.imwrite("runs/manual_court/court_selection.jpg", result)
+        cv2.imwrite("../runs/manual_court/court_selection.jpg", result)
         
         # Guardar coordenadas
         corners = {
@@ -134,7 +134,7 @@ def select_court_manually(video_path: str):
             'BL': points[3]
         }
         
-        with open("runs/manual_court/court_corners.json", "w") as f:
+        with open("../runs/manual_court/court_corners.json", "w") as f:
             json.dump(corners, f, indent=2)
         
         print(f"\n✅ Cancha seleccionada:")
@@ -142,7 +142,7 @@ def select_court_manually(video_path: str):
         print(f"   TR: {points[1]}")
         print(f"   BR: {points[2]}")
         print(f"   BL: {points[3]}")
-        print(f"\n📁 Guardado en runs/manual_court/")
+        print(f"\n📁 Guardado en ../runs/manual_court/")
         
         return corners
     
@@ -159,5 +159,5 @@ if __name__ == "__main__":
     if corners:
         print("\n" + "="*60)
         print("✅ SELECCIÓN GUARDADA")
-        print("   Usá runs/manual_court/court_corners.json para el análisis")
+        print("   Usá ../runs/manual_court/court_corners.json para el análisis")
         print("="*60)
