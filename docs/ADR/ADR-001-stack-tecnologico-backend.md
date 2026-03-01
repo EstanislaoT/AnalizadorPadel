@@ -29,7 +29,7 @@ Se adopta **ASP.NET Core 10** como framework principal del backend.
 | Componente | Tecnología | Justificación |
 |------------|------------|---------------|
 | Framework | ASP.NET Core 10 | LTS, alto rendimiento, ecosistema maduro |
-| Base de Datos | PostgreSQL | Soporte JSONB, extensibilidad, open source |
+| Base de Datos | SQLite (MVP) / PostgreSQL (V2.0+) | SQLite simple para MVP, migrar a PostgreSQL con usuarios |
 | ORM | Entity Framework Core | Integración nativa con .NET |
 | Procesamiento Video | FFmpeg + YOLO v8 (Python) | Mejor ecosistema para ML/Computer Vision |
 | Contenedores | Docker + Debian Slim | Compatibilidad con librerías nativas |
@@ -42,14 +42,17 @@ Se adopta **ASP.NET Core 10** como framework principal del backend.
 - Excelente soporte para APIs REST
 - Integración con ecosistema Azure si se requiere en futuro
 - Long Term Support hasta 2026
+- SQLite: simple, sin servidor, ideal para MVP
 
 ### Negativas
 - Curva de aprendizaje para desarrolladores sin experiencia en .NET
 - Integración con Python requiere subprocess
 - Mayor uso de memoria que Node.js
+- SQLite tiene limitaciones con writes concurrentes
 
 ### Neutrales
 - Requiere equipo con conocimientos en múltiples lenguajes (C# y Python)
+- Migración a PostgreSQL necesaria para V2.0
 
 ## Alternativas Consideradas
 

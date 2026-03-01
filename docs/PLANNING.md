@@ -5,10 +5,10 @@
 ### Fase 1: Setup Básico (Semanas 1-2)
 - [ ] Configurar estructura del proyecto
 - [ ] **Diseñar especificación OpenAPI (API First)**
-- [ ] **Configurar Swashbuckle y generar documentación Swagger**
+- [ ] **Configurar Scalar (Swagger) y generar documentación**
 - [ ] **Configurar mock server con Prism para frontend**
 - [ ] Setup de Docker y docker-compose
-- [ ] Configurar base de datos PostgreSQL
+- [ ] Configurar base de datos SQLite
 - [ ] Crear API básica de videos (siguiendo contrato OpenAPI)
 - [ ] Setup de frontend React + TypeScript
 - [ ] Configurar CORS y endpoints básicos
@@ -49,7 +49,7 @@
 
 | Herramienta | Versión | Notas |
 |---|---|---|
-| .NET SDK | 8.0 | Requerido para desarrollo backend local |
+| .NET SDK | 10.0 | Requerido para desarrollo backend local |
 | Node.js | 18+ | Requerido para desarrollo frontend local |
 | Docker | Latest | Obligatorio para producción |
 | Docker Compose | Latest | Obligatorio para producción |
@@ -62,7 +62,7 @@
 |---|---|---|
 | Frontend | :5173 (Vite Dev Server) | :80 (Nginx) |
 | Backend | :5000 (Kestrel directo) | :5000 (interno, via Nginx) |
-| PostgreSQL | :5432 | :5432 (interno) |
+| SQLite | :N/A (archivo local) | :N/A (archivo en volumen) |
 
 ### Setup Local (Desarrollo)
 
@@ -101,16 +101,14 @@ docker-compose logs -f
 
 ```env
 # Backend
-ConnectionStrings__DefaultConnection=Host=postgres;Database=padeldb;Username=postgres;Password=postgres
+ConnectionStrings__DefaultConnection=Data Source=padel.db
 UPLOADS_PATH=/app/uploads
 PYTHON_SCRIPTS_PATH=/app/scripts
 MAX_VIDEO_SIZE_MB=500
 PROCESSING_TIMEOUT_MINUTES=10
 
-# PostgreSQL
-POSTGRES_DB=padeldb
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=postgres
+# SQLite (MVP)
+# No requiere configuración adicional - archivo local: padel.db
 ```
 
 ---
@@ -122,11 +120,11 @@ POSTGRES_PASSWORD=postgres
 | # | Decisión | Alternativa Considerada | Justificación |
 |---|---|---|---|
 | 1 | React sobre Angular | Angular, Vue | Mayor ecosistema y flexibilidad |
-| 2 | PostgreSQL sobre MongoDB | MongoDB, MySQL | Mejor para datos relacionales complejos |
+| 2 | **SQLite** sobre PostgreSQL | PostgreSQL, MySQL | SQLite es más simple, no requiere servidor, ideal para MVP sin usuarios |
 | 3 | .NET sobre Node.js | Node.js, Python FastAPI | Mejor rendimiento para procesamiento pesado |
 | 4 | Docker | Bare metal | Facilita deploy y desarrollo consistente |
 | 5 | Sin autenticación en MVP | JWT desde el inicio | Reduce complejidad, se agrega en V2.0 |
-| 6 | Almacenamiento local | AWS S3 | Sin costos de cloud en MVP |
+| 6 | Almacenamiento SQLite | AWS S3 | Archivo local (padel.db), migración a PostgreSQL/S3 en V2.0 |
 | 7 | Procesamiento síncrono | Colas con RabbitMQ/Redis | Más simple, suficiente para MVP |
 | 8 | YOLO v8 via Python subprocess | ONNX Runtime en .NET | Más simple, acceso al ecosistema Python/ML |
 | 9 | Nginx + Kestrel | Solo Kestrel, IIS | Nginx maneja SSL, archivos estáticos y proxy |
@@ -139,6 +137,7 @@ POSTGRES_PASSWORD=postgres
 | 16 | **Conventional Commits** | Commits libres | Historial ordenado, generación de changelogs |
 | 17 | **Git Flow** | Trunk-based | Flujo estructurado para releases |
 | 18 | **ADRs** | Decisiones no documentadas | Trazabilidad de decisiones arquitectónicas |
+| 19 | **API Versioning por URL** | Header versioning | Simplicidad, más legible |
 
 ### Riesgos Identificados
 
@@ -157,6 +156,67 @@ POSTGRES_PASSWORD=postgres
 - **Iluminación**: El análisis requiere buena iluminación. Canchas bajo techo con mala luz pueden afectar la detección.
 - **Tamaño máximo**: 500MB limita videos de alta resolución/larga duración.
 - **Procesamiento síncrono**: El usuario espera en la misma request. Para videos largos, el timeout del browser puede ser un problema.
+
+---
+
+## 📝 Estrategia de Logging y Monitoreo
+
+### Herramientas Backend
+
+| Propósito | Herramienta | Notas |
+|-----------|-------------|-------|
+| Logging estructurado | Serilog | Ya incluido en .NET, alto rendimiento |
+| Formato de logs | JSON | Estructurado, fácil de parsear |
+| Rotación de logs | File sink | Archivos diarios, retención 7 días |
+| Monitoreo | Minimal | Logs + health checks en MVP |
+
+### Herramientas Frontend
+
+| Propósito | Herramienta | Notas |
+|-----------|-------------|-------|
+| Error tracking | Custom (API endpoint) | Enviar errores a nuestro backend |
+| Monitoreo | WebVitals | Métricas de performance |
+| Desarrollo | Console + browser DevTools | Para debugging local |
+
+### Niveles de Log (Backend)
+
+| Nivel | Cuándo usar |
+|-------|-------------|
+| **Debug** | Información de desarrollo, variables, flow |
+| **Information** | Eventos normales (upload, process started, completed) |
+| **Warning** | Situaciones anómalas pero manejables |
+| **Error** | Excepciones, fallos de procesamiento |
+
+### Logs del MVP (Backend)
+
+| Evento | Nivel | Datos a registrar |
+|--------|-------|-------------------|
+| Video subido | Info | filename, size, duration |
+| Procesamiento iniciado | Info | videoId, startTime |
+| Procesamiento completado | Info | videoId, duration, result |
+| Error de procesamiento | Error | videoId, exception, stack trace |
+| Health check | Debug | endpoint, response time |
+
+### Frontend Error Tracking (Custom)
+
+```typescript
+// Enviar errores a nuestro propio backend
+const logClientError = async (error: Error, context?: object) => {
+  await fetch('/api/logs/client-error', {
+    method: 'POST',
+    body: JSON.stringify({
+      message: error.message,
+      stack: error.stack,
+      url: window.location.href,
+      timestamp: new Date().toISOString()
+    })
+  });
+};
+
+// Capturar errores globales
+window.onerror = (msg, url, line) => logClientError(new Error(msg));
+window.onunhandledrejection = (e) => logClientError(e.reason);
+```
 
 ---
 

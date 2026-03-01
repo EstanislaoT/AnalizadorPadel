@@ -5,7 +5,7 @@
 ### Backend (.NET)
 - **Framework**: ASP.NET Core 10 (LTS)
 - **Arquitectura**: Web API con controladores REST (modular)
-- **Base de Datos**: PostgreSQL
+- **Base de Datos**: SQLite (MVP) / PostgreSQL (V2.0+)
 - **ORM**: Entity Framework Core
 - **Autenticación**: No requerida en MVP (Post-MVP: JWT Tokens)
 - **Procesamiento de Video**:
@@ -31,10 +31,12 @@
 - **Web Server**: Nginx (reverse proxy + archivos estáticos)
 - **App Server Backend**: Kestrel (integrado en .NET)
 - **App Server Frontend (dev)**: Vite Dev Server
+- **Base de Datos**: SQLite (archivo local)
 - **Almacenamiento**: Sistema de archivos local (`/uploads`)
 - **Logging**: Serilog
 
 ### Infraestructura Futura (Post-MVP)
+- **Base de Datos**: PostgreSQL (migración desde SQLite)
 - **Almacenamiento**: AWS S3 o Azure Blob Storage
 - **CDN**: CloudFlare
 - **Monitoring**: Application Insights
@@ -44,7 +46,7 @@
 ### API First
 - **Especificación**: OpenAPI 3.0 (Swagger)
 - **Generación de Código**: NSwag (cliente TypeScript)
-- **Documentación**: Swashbuckle.AspNetCore
+- **Documentación**: Scalar.AspNetCore
 - **Mocking**: Prism (desarrollo frontend independiente)
 
 ---
