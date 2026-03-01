@@ -3,7 +3,7 @@
 ## Stack Tecnológico
 
 ### Backend (.NET)
-- **Framework**: ASP.NET Core 8 (LTS)
+- **Framework**: ASP.NET Core 10 (LTS)
 - **Arquitectura**: Web API con controladores REST (modular)
 - **Base de Datos**: PostgreSQL
 - **ORM**: Entity Framework Core
@@ -519,7 +519,7 @@ app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "API v1"));
 ```json
 // nswag.json
 {
-  "runtime": "Net80",
+  "runtime": "Net100",
   "documentGenerator": {
     "aspNetCoreToOpenApi": {
       "project": "AnalizadorPadel.csproj",
@@ -1439,7 +1439,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v3
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: 10.0.x
       - name: Restore dependencies
         run: dotnet restore backend/AnalizadorPadel.sln
       - name: Build

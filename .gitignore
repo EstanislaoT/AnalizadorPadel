@@ -221,13 +221,18 @@ backend/openapi.json
 TestResults/
 *.trx
 
-# Test videos for Spike 1
-test-videos/
+# Test videos (keep directory structure)
+test-videos/*.mp4
+test-videos/*.avi
+test-videos/*.mov
+
+# Spike outputs
 runs/
 
-# YOLO model weights
+# YOLO model weights (keep in models/)
 *.pt
-yolov8*.pt
+models/*.pt
+!models/README.md
 
 # Temporary processing files
 *.tmp

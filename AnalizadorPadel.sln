@@ -1,0 +1,35 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "spikes", "spikes", "{674B3D0D-B3C1-BDFD-64ED-056E74CE37B3}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "spike4", "spike4", "{EFD83367-DE5B-FAAD-53CD-CB80DC111C48}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "dotnet-api", "dotnet-api", "{E905AAF7-11AD-6362-D5AB-01E49641560E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Spike4Api", "spikes\spike4\dotnet-api\Spike4Api.csproj", "{0CE35D1A-1D79-FE2C-BF22-79C22F5F04D4}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{0CE35D1A-1D79-FE2C-BF22-79C22F5F04D4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0CE35D1A-1D79-FE2C-BF22-79C22F5F04D4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0CE35D1A-1D79-FE2C-BF22-79C22F5F04D4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0CE35D1A-1D79-FE2C-BF22-79C22F5F04D4}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{EFD83367-DE5B-FAAD-53CD-CB80DC111C48} = {674B3D0D-B3C1-BDFD-64ED-056E74CE37B3}
+		{E905AAF7-11AD-6362-D5AB-01E49641560E} = {EFD83367-DE5B-FAAD-53CD-CB80DC111C48}
+		{0CE35D1A-1D79-FE2C-BF22-79C22F5F04D4} = {E905AAF7-11AD-6362-D5AB-01E49641560E}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {97291E5D-FF04-49EA-A10C-D3EC4643EB8C}
+	EndGlobalSection
+EndGlobal

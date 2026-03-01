@@ -22,13 +22,13 @@ Se necesita definir el stack tecnológico para el backend del Analizador de Pád
 
 ## Decisión
 
-Se adopta **ASP.NET Core 8** como framework principal del backend.
+Se adopta **ASP.NET Core 10** como framework principal del backend.
 
 ### Componentes del Stack
 
 | Componente | Tecnología | Justificación |
 |------------|------------|---------------|
-| Framework | ASP.NET Core 8 | LTS, alto rendimiento, ecosistema maduro |
+| Framework | ASP.NET Core 10 | LTS, alto rendimiento, ecosistema maduro |
 | Base de Datos | PostgreSQL | Soporte JSONB, extensibilidad, open source |
 | ORM | Entity Framework Core | Integración nativa con .NET |
 | Procesamiento Video | FFmpeg + YOLO v8 (Python) | Mejor ecosistema para ML/Computer Vision |
@@ -61,7 +61,7 @@ Se adopta **ASP.NET Core 8** como framework principal del backend.
 
 ## Referencias
 
-- [ASP.NET Core 8 Documentation](https://docs.microsoft.com/aspnet/core)
+- [ASP.NET Core 10 Documentation](https://docs.microsoft.com/aspnet/core)
 - [TECHNICAL.md - Stack Tecnológico](../TECHNICAL.md)
 
 ---
