@@ -206,6 +206,15 @@ $RECYCLE.BIN/
 # Project Specific
 # ===================
 
+# SQLite database files
+*.db
+*.db-shm
+*.db-wal
+
+# Analysis outputs
+backend/src/AnalizadorPadel.Api/outputs/
+backend/src/AnalizadorPadel.Api/uploads/
+
 # Uploaded videos
 backend/uploads/*
 !backend/uploads/.gitkeep

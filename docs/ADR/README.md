@@ -38,6 +38,8 @@ Un Architecture Decision Record (ADR) es un documento que captura una decisión 
 | ADR-001 | Stack Tecnológico Backend | Aceptado | 2026-02-18 |
 | ADR-002 | Estrategia de Testing BDD+TDD | Aceptado | 2026-02-18 |
 | ADR-003 | API First | Aceptado | 2026-02-18 |
+| ADR-004 | Estructura del Proyecto | Propuesto | 2026-02-28 |
+| ADR-005 | Reorganización Carpeta Runs | Aceptado | 2026-02-28 |
 
 ---
 

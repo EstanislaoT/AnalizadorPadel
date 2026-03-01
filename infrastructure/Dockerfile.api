@@ -1,0 +1,55 @@
+# Backend API Dockerfile - AnalizadorPadel
+# Uses Debian Slim for compatibility with FFmpeg and OpenCV (ADR-001)
+
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+
+# Copy project file and restore
+COPY backend/src/AnalizadorPadel.Api/AnalizadorPadel.Api.csproj ./backend/src/AnalizadorPadel.Api/
+RUN dotnet restore backend/src/AnalizadorPadel.Api/AnalizadorPadel.Api.csproj
+
+# Copy source and build
+COPY backend/src/ ./backend/src/
+WORKDIR /src/backend/src/AnalizadorPadel.Api
+RUN dotnet publish -c Release -o /app/publish
+
+# Runtime image (Debian Slim for FFmpeg/OpenCV compatibility)
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+WORKDIR /app
+
+# Install Python and dependencies for YOLO processing
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    python3-pip \
+    python3-venv \
+    ffmpeg \
+    libgl1 \
+    libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create Python virtual environment and install dependencies
+RUN python3 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+COPY python-scripts/requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt || true
+
+# Copy published app
+COPY --from=build /app/publish .
+
+# Copy Python scripts and models
+COPY python-scripts/ /app/python-scripts/
+COPY models/ /app/models/
+
+# Create required directories
+RUN mkdir -p /app/uploads /app/outputs /app/logs
+
+# Environment variables
+ENV ASPNETCORE_URLS=http://+:5000
+ENV ASPNETCORE_ENVIRONMENT=Production
+ENV ConnectionStrings__DefaultConnection="Data Source=/app/data/padel.db"
+ENV PYTHON_SCRIPTS_PATH=/app/python-scripts
+ENV UPLOADS_PATH=/app/uploads
+
+EXPOSE 5000
+
+ENTRYPOINT ["dotnet", "AnalizadorPadel.Api.dll"]

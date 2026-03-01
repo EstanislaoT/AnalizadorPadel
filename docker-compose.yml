@@ -1,0 +1,52 @@
+# Docker Compose - AnalizadorPadel
+# Production deployment configuration
+
+services:
+  # Backend API (.NET + Python)
+  api:
+    build:
+      context: .
+      dockerfile: infrastructure/Dockerfile.api
+    container_name: padel-api
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__DefaultConnection=Data Source=/app/data/padel.db
+      - PYTHON_SCRIPTS_PATH=/app/python-scripts
+      - UPLOADS_PATH=/app/uploads
+    volumes:
+      - padel-data:/app/data
+      - padel-uploads:/app/uploads
+      - padel-outputs:/app/outputs
+      - padel-logs:/app/logs
+    ports:
+      - "5001:5000"  # API exposed on 5001 (5000 used by AirPlay)  # Exposed for debugging; in production, only via nginx
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  # Frontend (Nginx + React SPA)
+  frontend:
+    build:
+      context: .
+      dockerfile: infrastructure/Dockerfile.frontend
+    container_name: padel-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  padel-data:
+    driver: local
+  padel-uploads:
+    driver: local
+  padel-outputs:
+    driver: local
+  padel-logs:
+    driver: local

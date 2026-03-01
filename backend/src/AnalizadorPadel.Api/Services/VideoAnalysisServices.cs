@@ -1,101 +1,158 @@
 using System.Text.Json;
+using AnalizadorPadel.Api.Data;
 using AnalizadorPadel.Api.Models.DTOs;
+using AnalizadorPadel.Api.Models.Entities;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace AnalizadorPadel.Api.Services;
 
 /// <summary>
-/// Servicio para gestión de videos - MVP con almacenamiento en memoria
+/// Servicio para gestión de videos - Persistencia con EF Core + SQLite
 /// </summary>
 public class VideoService
 {
-    private readonly List<VideoDto> _videos = new();
-    private int _nextId = 1;
+    private readonly IDbContextFactory<PadelDbContext> _dbFactory;
     private readonly string _uploadsPath;
-    private readonly string _outputPath;
+    private readonly ILogger<VideoService> _logger;
 
-    public VideoService(IWebHostEnvironment env)
+    public VideoService(IDbContextFactory<PadelDbContext> dbFactory, IWebHostEnvironment env, ILogger<VideoService> logger)
     {
+        _dbFactory = dbFactory;
         _uploadsPath = Path.Combine(env.ContentRootPath, "uploads");
-        _outputPath = Path.Combine(env.ContentRootPath, "outputs");
+        _logger = logger;
         Directory.CreateDirectory(_uploadsPath);
-        Directory.CreateDirectory(_outputPath);
     }
 
     public async Task<VideoDto> CreateVideoAsync(IFormFile file, string name, string? description = null)
     {
-        var fileName = $"{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
+        var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+        var fileName = $"{Guid.NewGuid()}{extension}";
         var filePath = Path.Combine(_uploadsPath, fileName);
 
-        using (var stream = new FileStream(filePath, FileMode.Create))
+        await using (var stream = new FileStream(filePath, FileMode.Create))
         {
             await file.CopyToAsync(stream);
         }
 
-        var video = new VideoDto(
-            Id: _nextId++,
-            Name: name,
-            Description: description,
-            FilePath: filePath,
-            UploadedAt: DateTime.UtcNow,
-            Status: VideoStatus.Uploaded,
-            AnalysisId: null
-        );
-
-        _videos.Add(video);
-        return video;
-    }
-
-    public List<VideoDto> GetAll()
-    {
-        return _videos.ToList();
-    }
-
-    public VideoDto? GetById(int id)
-    {
-        return _videos.FirstOrDefault(v => v.Id == id);
-    }
-
-    public bool Delete(int id)
-    {
-        var video = _videos.FirstOrDefault(v => v.Id == id);
-        if (video == null) return false;
-
-        // Delete file
-        if (File.Exists(video.FilePath))
+        var entity = new VideoEntity
         {
-            File.Delete(video.FilePath);
+            Name = name,
+            Description = description,
+            FilePath = filePath,
+            FileSizeBytes = file.Length,
+            FileExtension = extension,
+            UploadedAt = DateTime.UtcNow,
+            Status = nameof(VideoStatus.Uploaded)
+        };
+
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        db.Videos.Add(entity);
+        await db.SaveChangesAsync();
+
+        _logger.LogInformation("Video uploaded: {VideoId} ({Name}, {Size} bytes)", entity.Id, name, file.Length);
+
+        return MapToDto(entity);
+    }
+
+    public async Task<List<VideoDto>> GetAllAsync()
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        var entities = await db.Videos
+            .OrderByDescending(v => v.UploadedAt)
+            .ToListAsync();
+        return entities.Select(MapToDto).ToList();
+    }
+
+    public async Task<VideoDto?> GetByIdAsync(int id)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        var entity = await db.Videos.FindAsync(id);
+        return entity == null ? null : MapToDto(entity);
+    }
+
+    public async Task<bool> DeleteAsync(int id)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        var entity = await db.Videos.FindAsync(id);
+        if (entity == null) return false;
+
+        // Delete physical file
+        if (File.Exists(entity.FilePath))
+        {
+            File.Delete(entity.FilePath);
+            _logger.LogInformation("Deleted video file: {FilePath}", entity.FilePath);
         }
 
-        _videos.Remove(video);
+        db.Videos.Remove(entity);
+        await db.SaveChangesAsync();
+
+        _logger.LogInformation("Video deleted: {VideoId}", id);
         return true;
     }
 
-    public VideoDto? UpdateStatus(int id, VideoStatus status, int? analysisId = null)
+    public async Task<VideoDto?> UpdateStatusAsync(int id, VideoStatus status, int? analysisId = null)
     {
-        var video = _videos.FirstOrDefault(v => v.Id == id);
-        if (video == null) return null;
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        var entity = await db.Videos.FindAsync(id);
+        if (entity == null) return null;
 
-        var index = _videos.IndexOf(video);
-        _videos[index] = video with { Status = status, AnalysisId = analysisId };
-        return _videos[index];
+        entity.Status = status.ToString();
+        entity.AnalysisId = analysisId;
+        await db.SaveChangesAsync();
+
+        return MapToDto(entity);
+    }
+
+    /// <summary>
+    /// Gets the file path for a video (internal use by AnalysisService)
+    /// </summary>
+    public async Task<string?> GetFilePathAsync(int id)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        var entity = await db.Videos.FindAsync(id);
+        return entity?.FilePath;
+    }
+
+    private static VideoDto MapToDto(VideoEntity entity)
+    {
+        var status = Enum.TryParse<VideoStatus>(entity.Status, out var parsed)
+            ? parsed
+            : VideoStatus.Uploaded;
+
+        return new VideoDto(
+            Id: entity.Id,
+            Name: entity.Name,
+            Description: entity.Description,
+            FilePath: entity.FilePath,
+            UploadedAt: entity.UploadedAt,
+            Status: status,
+            AnalysisId: entity.AnalysisId
+        );
     }
 }
 
 /// <summary>
-/// Servicio para gestión de análisis - MVP con almacenamiento en memoria
+/// Servicio para gestión de análisis - Persistencia con EF Core + SQLite
 /// </summary>
 public class AnalysisService
 {
-    private readonly List<AnalysisDto> _analyses = new();
-    private int _nextId = 1;
+    private readonly IDbContextFactory<PadelDbContext> _dbFactory;
     private readonly string _outputPath;
     private readonly VideoService _videoService;
+    private readonly ILogger<AnalysisService> _logger;
     private readonly JsonSerializerOptions _jsonOptions;
 
-    public AnalysisService(IWebHostEnvironment env, VideoService videoService)
+    public AnalysisService(
+        IDbContextFactory<PadelDbContext> dbFactory,
+        IWebHostEnvironment env,
+        VideoService videoService,
+        ILogger<AnalysisService> logger)
     {
+        _dbFactory = dbFactory;
         _outputPath = Path.Combine(env.ContentRootPath, "outputs");
         _videoService = videoService;
+        _logger = logger;
         Directory.CreateDirectory(_outputPath);
 
         _jsonOptions = new JsonSerializerOptions
@@ -106,46 +163,60 @@ public class AnalysisService
 
     public async Task<AnalysisDto> StartAnalysisAsync(int videoId, int? courtId)
     {
-        var video = _videoService.GetById(videoId);
+        var video = await _videoService.GetByIdAsync(videoId);
         if (video == null)
             throw new ArgumentException($"Video {videoId} not found");
 
         // Update video status
-        _videoService.UpdateStatus(videoId, VideoStatus.Processing);
+        await _videoService.UpdateStatusAsync(videoId, VideoStatus.Processing);
 
         // Create analysis record
-        var analysis = new AnalysisDto(
-            Id: _nextId++,
-            VideoId: videoId,
-            StartedAt: DateTime.UtcNow,
-            CompletedAt: null,
-            Status: AnalysisStatus.Running,
-            ErrorMessage: null,
-            Result: null
-        );
+        var entity = new AnalysisEntity
+        {
+            VideoId = videoId,
+            StartedAt = DateTime.UtcNow,
+            Status = nameof(AnalysisStatus.Running)
+        };
 
-        _analyses.Add(analysis);
+        await using (var db = await _dbFactory.CreateDbContextAsync())
+        {
+            db.Analyses.Add(entity);
+            await db.SaveChangesAsync();
+        }
 
         // Update video with analysis ID
-        _videoService.UpdateStatus(videoId, VideoStatus.Processing, analysis.Id);
+        await _videoService.UpdateStatusAsync(videoId, VideoStatus.Processing, entity.Id);
 
-        // Run analysis in background
-        _ = Task.Run(async () => await RunAnalysisAsync(analysis.Id, video.FilePath));
+        _logger.LogInformation("Analysis started: {AnalysisId} for video {VideoId}", entity.Id, videoId);
 
-        return analysis;
+        // Run analysis in background with proper error handling
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await RunAnalysisAsync(entity.Id, video.FilePath);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unhandled error in background analysis {AnalysisId}", entity.Id);
+                await UpdateAnalysisFailedAsync(entity.Id, $"Unhandled error: {ex.Message}");
+            }
+        });
+
+        return MapToDto(entity);
     }
 
     private async Task RunAnalysisAsync(int analysisId, string videoPath)
     {
         try
         {
-            var analysis = _analyses.FirstOrDefault(a => a.Id == analysisId);
-            if (analysis == null) return;
-
             // Prepare paths for Python script
             var modelsPath = Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "..", "models");
             var pythonScriptPath = Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "..", "python-scripts", "process_video.py");
             var resultPath = Path.Combine(_outputPath, $"analysis_{analysisId}_result.json");
+
+            _logger.LogInformation("Running Python analysis: script={Script}, video={Video}, output={Output}",
+                pythonScriptPath, videoPath, resultPath);
 
             // Execute Python script
             var processInfo = new System.Diagnostics.ProcessStartInfo
@@ -165,12 +236,26 @@ public class AnalysisService
                 return;
             }
 
-            var output = await process.StandardOutput.ReadToEndAsync();
-            var error = await process.StandardError.ReadToEndAsync();
-            await process.WaitForExitAsync();
+            // Read output streams to prevent deadlocks
+            var outputTask = process.StandardOutput.ReadToEndAsync();
+            var errorTask = process.StandardError.ReadToEndAsync();
+
+            // Wait with timeout (10 minutes as per PLANNING.md)
+            var completed = await Task.Run(() => process.WaitForExit(TimeSpan.FromMinutes(10)));
+            if (!completed)
+            {
+                process.Kill(entireProcessTree: true);
+                await UpdateAnalysisFailedAsync(analysisId, "Processing timeout: exceeded 10 minutes");
+                _logger.LogWarning("Analysis {AnalysisId} killed due to timeout", analysisId);
+                return;
+            }
+
+            var output = await outputTask;
+            var error = await errorTask;
 
             if (process.ExitCode != 0)
             {
+                _logger.LogError("Python script failed for analysis {AnalysisId}: {Error}", analysisId, error);
                 await UpdateAnalysisFailedAsync(analysisId, $"Python script failed: {error}");
                 return;
             }
@@ -181,18 +266,37 @@ public class AnalysisService
                 var resultJson = await File.ReadAllTextAsync(resultPath);
                 var result = JsonSerializer.Deserialize<AnalysisResult>(resultJson, _jsonOptions);
 
-                var completedAnalysis = analysis with
+                if (result != null)
                 {
-                    Status = AnalysisStatus.Completed,
-                    CompletedAt = DateTime.UtcNow,
-                    Result = result
-                };
+                    await using var db = await _dbFactory.CreateDbContextAsync();
+                    var analysis = await db.Analyses.FindAsync(analysisId);
+                    if (analysis != null)
+                    {
+                        analysis.Status = nameof(AnalysisStatus.Completed);
+                        analysis.CompletedAt = DateTime.UtcNow;
+                        analysis.TotalFrames = result.TotalFrames;
+                        analysis.PlayersDetected = result.PlayersDetected;
+                        analysis.AvgDetectionsPerFrame = result.AvgDetectionsPerFrame;
+                        analysis.FramesWith4Players = result.FramesWith4Players;
+                        analysis.DetectionRatePercent = result.DetectionRatePercent;
+                        analysis.ProcessingTimeSeconds = result.ProcessingTimeSeconds;
+                        analysis.ModelUsed = result.ModelUsed;
+                        analysis.VideoPath = result.VideoPath;
+                        analysis.Timestamp = result.Timestamp;
+                        await db.SaveChangesAsync();
+                    }
 
-                var index = _analyses.IndexOf(analysis);
-                _analyses[index] = completedAnalysis;
+                    await _videoService.UpdateStatusAsync(
+                        (await db.Analyses.FindAsync(analysisId))?.VideoId ?? 0,
+                        VideoStatus.Completed, analysisId);
 
-                // Update video status
-                _videoService.UpdateStatus(analysis.VideoId, VideoStatus.Completed, analysisId);
+                    _logger.LogInformation("Analysis {AnalysisId} completed successfully. Frames: {Frames}, Detection rate: {Rate}%",
+                        analysisId, result.TotalFrames, result.DetectionRatePercent);
+                }
+                else
+                {
+                    await UpdateAnalysisFailedAsync(analysisId, "Failed to parse result JSON");
+                }
             }
             else
             {
@@ -201,64 +305,68 @@ public class AnalysisService
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Error running analysis {AnalysisId}", analysisId);
             await UpdateAnalysisFailedAsync(analysisId, ex.Message);
         }
     }
 
     private async Task UpdateAnalysisFailedAsync(int analysisId, string error)
     {
-        var analysis = _analyses.FirstOrDefault(a => a.Id == analysisId);
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        var analysis = await db.Analyses.FindAsync(analysisId);
         if (analysis == null) return;
 
-        var index = _analyses.IndexOf(analysis);
-        _analyses[index] = analysis with
-        {
-            Status = AnalysisStatus.Failed,
-            CompletedAt = DateTime.UtcNow,
-            ErrorMessage = error
-        };
+        analysis.Status = nameof(AnalysisStatus.Failed);
+        analysis.CompletedAt = DateTime.UtcNow;
+        analysis.ErrorMessage = error;
+        await db.SaveChangesAsync();
 
         // Update video status
-        _videoService.UpdateStatus(analysis.VideoId, VideoStatus.Failed, analysisId);
+        await _videoService.UpdateStatusAsync(analysis.VideoId, VideoStatus.Failed, analysisId);
+
+        _logger.LogWarning("Analysis {AnalysisId} failed: {Error}", analysisId, error);
     }
 
-    public AnalysisDto? GetById(int id)
+    public async Task<AnalysisDto?> GetByIdAsync(int id)
     {
-        return _analyses.FirstOrDefault(a => a.Id == id);
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        var entity = await db.Analyses.FindAsync(id);
+        return entity == null ? null : MapToDto(entity);
     }
 
-    public AnalysisStats? GetStats(int id)
+    public async Task<AnalysisStats?> GetStatsAsync(int id)
     {
-        var analysis = _analyses.FirstOrDefault(a => a.Id == id);
-        if (analysis?.Result == null) return null;
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        var analysis = await db.Analyses.FindAsync(id);
+        if (analysis == null || analysis.Status != nameof(AnalysisStatus.Completed)) return null;
 
         return new AnalysisStats(
-            TotalFrames: analysis.Result.TotalFrames,
-            FramesWith4Players: analysis.Result.FramesWith4Players,
-            DetectionRatePercent: analysis.Result.DetectionRatePercent,
-            AvgDetectionsPerFrame: analysis.Result.AvgDetectionsPerFrame,
-            PlayersDetected: analysis.Result.PlayersDetected,
-            ProcessingTimeSeconds: analysis.Result.ProcessingTimeSeconds,
-            ModelUsed: analysis.Result.ModelUsed
+            TotalFrames: analysis.TotalFrames ?? 0,
+            FramesWith4Players: analysis.FramesWith4Players ?? 0,
+            DetectionRatePercent: analysis.DetectionRatePercent ?? 0,
+            AvgDetectionsPerFrame: analysis.AvgDetectionsPerFrame ?? 0,
+            PlayersDetected: analysis.PlayersDetected ?? 0,
+            ProcessingTimeSeconds: analysis.ProcessingTimeSeconds ?? 0,
+            ModelUsed: analysis.ModelUsed ?? "unknown"
         );
     }
 
-    public HeatmapData? GetHeatmap(int id)
+    public async Task<HeatmapData?> GetHeatmapAsync(int id)
     {
-        // MVP: Return placeholder heatmap data
-        // TODO: Implement actual heatmap generation from analysis data
-        var analysis = _analyses.FirstOrDefault(a => a.Id == id);
-        if (analysis?.Result == null) return null;
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        var analysis = await db.Analyses.FindAsync(id);
+        if (analysis == null || analysis.Status != nameof(AnalysisStatus.Completed)) return null;
 
+        // MVP: Return placeholder heatmap data seeded by analysis ID
+        // TODO: Implement actual heatmap generation from frame-by-frame position data
         var points = new List<HeatmapPoint>();
-        var random = new Random(id); // Seeded for consistency
-        
-        // Generate sample heatmap points for the court
+        var random = new Random(id);
+
         for (int i = 0; i < 100; i++)
         {
             points.Add(new HeatmapPoint(
-                X: random.NextDouble() * 23.77, // Padel court length
-                Y: random.NextDouble() * 10.97, // Padel court width
+                X: random.NextDouble() * 23.77,
+                Y: random.NextDouble() * 10.97,
                 Intensity: random.Next(1, 10)
             ));
         }
@@ -269,13 +377,48 @@ public class AnalysisService
         );
     }
 
-    public string? GetReport(int id)
+    public async Task<string?> GetReportAsync(int id)
     {
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        var analysis = await db.Analyses.FindAsync(id);
+        if (analysis == null || analysis.Status != nameof(AnalysisStatus.Completed)) return null;
+
         // MVP: Return placeholder report path
         // TODO: Implement actual PDF report generation
-        var analysis = _analyses.FirstOrDefault(a => a.Id == id);
-        if (analysis?.Result == null) return null;
-
         return $"/api/analyses/{id}/report-placeholder";
+    }
+
+    private static AnalysisDto MapToDto(AnalysisEntity entity)
+    {
+        var status = Enum.TryParse<AnalysisStatus>(entity.Status, out var parsed)
+            ? parsed
+            : AnalysisStatus.Pending;
+
+        AnalysisResult? result = null;
+        if (entity.Status == nameof(AnalysisStatus.Completed) && entity.TotalFrames.HasValue)
+        {
+            result = new AnalysisResult(
+                Status: entity.Status,
+                VideoPath: entity.VideoPath ?? "",
+                ProcessingTimeSeconds: entity.ProcessingTimeSeconds ?? 0,
+                TotalFrames: entity.TotalFrames ?? 0,
+                PlayersDetected: entity.PlayersDetected ?? 0,
+                AvgDetectionsPerFrame: entity.AvgDetectionsPerFrame ?? 0,
+                FramesWith4Players: entity.FramesWith4Players ?? 0,
+                DetectionRatePercent: entity.DetectionRatePercent ?? 0,
+                ModelUsed: entity.ModelUsed ?? "unknown",
+                Timestamp: entity.Timestamp ?? ""
+            );
+        }
+
+        return new AnalysisDto(
+            Id: entity.Id,
+            VideoId: entity.VideoId,
+            StartedAt: entity.StartedAt,
+            CompletedAt: entity.CompletedAt,
+            Status: status,
+            ErrorMessage: entity.ErrorMessage,
+            Result: result
+        );
     }
 }
