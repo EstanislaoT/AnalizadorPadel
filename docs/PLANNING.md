@@ -3,33 +3,33 @@
 ## 🚀 Plan de Implementación
 
 ### Fase 1: Setup Básico (Semanas 1-2)
-- [ ] Configurar estructura del proyecto
-- [ ] **Diseñar especificación OpenAPI (API First)**
-- [ ] **Configurar Scalar (Swagger) y generar documentación**
-- [ ] **Configurar mock server con Prism para frontend**
-- [ ] Setup de Docker y docker-compose
-- [ ] Configurar base de datos SQLite
-- [ ] Crear API básica de videos (siguiendo contrato OpenAPI)
-- [ ] Setup de frontend React + TypeScript
-- [ ] Configurar CORS y endpoints básicos
+- [x] Configurar estructura del proyecto
+- [x] **Diseñar especificación OpenAPI (API First)**
+- [x] **Configurar Scalar (Swagger) y generar documentación**
+- [ ] **Configurar mock server con Prism para frontend** (NO IMPLEMENTADO)
+- [x] Setup de Docker y docker-compose
+- [x] Configurar base de datos SQLite
+- [x] Crear API básica de videos (siguiendo contrato OpenAPI)
+- [x] Setup de frontend React + TypeScript
+- [x] Configurar CORS y endpoints básicos
 
 ### Fase 2: Subida y Almacenamiento (Semanas 3-4)
-- [ ] Implementar subida de videos
-- [ ] Configurar almacenamiento local (`/uploads`)
-- [ ] Crear API endpoints para videos
-- [ ] Implementar frontend de subida con drag & drop
-- [ ] Implementar procesamiento síncrono
+- [x] Implementar subida de videos
+- [x] Configurar almacenamiento local (`/uploads`)
+- [x] Crear API endpoints para videos
+- [x] Implementar frontend de subida (input básico, sin drag & drop)
+- [x] Implementar procesamiento síncrono
 
 ### Fase 3: Procesamiento de Video (Semanas 5-7)
-- [ ] Integrar FFmpeg para extracción de frames
-- [ ] Implementar scripts Python con YOLO v8
-- [ ] Integrar detección de pelota (OpenCV HSV)
-- [ ] Crear servicios modulares de análisis
-- [ ] Extraer y guardar estadísticas en BD
+- [x] FFmpeg disponible en Docker (instalado pero YOLO lo usa internamente)
+- [x] Implementar scripts Python con YOLO v8 (procesamiento básico)
+- [ ] Detección de pelota (OpenCV HSV) - EXCLUIDO DEL MVP (Spike 3)
+- [x] Crear servicios modulares de análisis
+- [x] Extraer y guardar estadísticas en BD
 
 ### Fase 4: Visualización y UI (Semanas 8-9)
-- [ ] Implementar dashboard principal
-- [ ] Crear heatmap con D3.js
+- [ ] Implementar dashboard principal (UI básica en App.tsx)
+- [ ] Crear heatmap con D3.js (mock en backend)
 - [ ] Crear visualizaciones estadísticas con Chart.js
 - [ ] Implementar reproductor de video
 - [ ] Sistema de descarga de reportes (PDF)
@@ -412,4 +412,4 @@ player_court = cv2.perspectiveTransform(player_pixels, M)
 
 ---
 
-*Última actualización: 18 de Febrero 2026*
+*Última actualización: 15 de Marzo 2026*
