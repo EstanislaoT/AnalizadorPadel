@@ -28,11 +28,37 @@
 - [x] Extraer y guardar estadísticas en BD
 
 ### Fase 4: Visualización y UI (Semanas 8-9)
-- [ ] Implementar dashboard principal (UI básica en App.tsx)
-- [ ] Crear heatmap con D3.js (mock en backend)
-- [ ] Crear visualizaciones estadísticas con Chart.js
-- [ ] Implementar reproductor de video
-- [ ] Sistema de descarga de reportes (PDF)
+- [ ] **Sprint 1: Estructura Base y Dashboard** (3 días)
+  - [ ] Crear estructura de carpetas según ADR-004
+  - [ ] Instalar dependencias (MUI, Chart.js, D3.js, Video.js, Zustand)
+  - [ ] Crear layout principal con navegación
+  - [ ] Implementar dashboard con estadísticas básicas
+  - [ ] Crear endpoint `GET /api/dashboard/stats` en backend
+- [ ] **Sprint 2: Reproductor de Video** (3 días)
+  - [ ] Implementar endpoint stream de video en backend
+  - [ ] Crear componente VideoPlayer con Video.js
+  - [ ] Integrar reproductor con lista de videos
+  - [ ] Agregar controles de reproducción
+- [ ] **Sprint 3: Heatmap con D3.js** (3 días)
+  - [ ] Crear componente Heatmap con D3.js
+  - [ ] Implementar endpoint heatmap por jugador
+  - [ ] Integrar heatmap con reproductor de video
+  - [ ] Agregar controles de filtrado por jugador
+- [ ] **Sprint 4: Visualizaciones Estadísticas** (3 días)
+  - [ ] Crear componente StatisticsCharts con Chart.js
+  - [ ] Implementar endpoint stats por jugador
+  - [ ] Crear gráficos: detecciones, frames, tasa éxito
+  - [ ] Integrar con dashboard
+- [ ] **Sprint 5: Timeline y Frames** (2 días)
+  - [ ] Crear componente Timeline con marcadores
+  - [ ] Implementar endpoint timeline de eventos
+  - [ ] Crear componente FrameViewer para frames específicos
+  - [ ] Integrar timeline con reproductor
+- [ ] **Sprint 6: Reportes PDF y Testing** (3 días)
+  - [ ] Crear componente ReportDownloader
+  - [ ] Implementar generación de PDF con QuestPDF
+  - [ ] Crear tests BDD para US-2 (Ver Estadísticas)
+  - [ ] Crear tests TDD para servicios de visualización
 
 ### Fase 5: Testing y Deploy (Semana 10)
 - [ ] Testing unitario y de integración
@@ -412,4 +438,282 @@ player_court = cv2.perspectiveTransform(player_pixels, M)
 
 ---
 
-*Última actualización: 15 de Marzo 2026*
+## 🎨 Fase 4: Visualización y UI — Plan Detallado
+
+### 🎯 Objetivo
+
+Implementar la capa de visualización y UI del Analizador de Pádel, incluyendo dashboard principal, heatmap con D3.js, visualizaciones estadísticas con Chart.js, reproductor de video, y sistema de descarga de reportes PDF.
+
+### 📊 Estado Actual
+
+**Frontend (App.tsx):**
+- ✅ Subida de videos básica
+- ✅ Lista de videos con estado
+- ✅ Botón para iniciar análisis
+- ❌ Dashboard principal
+- ❌ Heatmap con D3.js
+- ❌ Visualizaciones con Chart.js
+- ❌ Reproductor de video
+- ❌ Descarga de reportes PDF
+
+**Backend (Program.cs):**
+- ✅ Endpoints para videos (CRUD)
+- ✅ Endpoints para análisis (iniciar, obtener, stats, heatmap, report)
+- ❌ Endpoint stream de video
+- ❌ Endpoint frames específicos
+- ❌ Endpoint timeline de eventos
+- ❌ Endpoint estadísticas dashboard
+
+### 🔌 Endpoints Backend Necesarios
+
+#### Endpoints Existentes (✅ Ya implementados):
+- `GET /api/videos` - Listar videos
+- `GET /api/videos/{id}` - Obtener video por ID
+- `GET /api/analyses/{id}` - Obtener análisis
+- `GET /api/analyses/{id}/stats` - Estadísticas del análisis
+- `GET /api/analyses/{id}/heatmap` - Datos del heatmap
+- `GET /api/analyses/{id}/report` - Descargar PDF
+
+#### Endpoints Nuevos a Implementar:
+
+| Endpoint | Método | Descripción | Prioridad |
+|----------|--------|-------------|-----------|
+| `/api/videos/{id}/stream` | GET | Stream de video para reproductor (soporta range requests) | Alta |
+| `/api/analyses/{id}/frames/{frameNumber}` | GET | Frame específico (PNG/JPEG) | Media |
+| `/api/analyses/{id}/timeline` | GET | Timeline de eventos (detecciones, cambios posición) | Alta |
+| `/api/dashboard/stats` | GET | Estadísticas generales del dashboard | Alta |
+| `/api/analyses/{id}/players/{playerIndex}/stats` | GET | Stats por jugador (1-4) | Media |
+| `/api/analyses/{id}/heatmap/player/{playerIndex}` | GET | Heatmap por jugador | Media |
+
+### 📦 Librerías y Dependencias
+
+#### Frontend (según TECHNICAL.md y ADR-004):
+
+```json
+{
+  "dependencies": {
+    "react": "^18.x",
+    "react-dom": "^18.x",
+    "react-router-dom": "^6.x",
+    "axios": "^1.x",
+    "@mui/material": "^5.x",
+    "@mui/icons-material": "^5.x",
+    "@emotion/react": "^11.x",
+    "@emotion/styled": "^11.x",
+    "chart.js": "^4.x",
+    "react-chartjs-2": "^5.x",
+    "d3": "^7.x",
+    "video.js": "^8.x",
+    "react-player": "^2.x",
+    "zustand": "^4.x",
+    "html2canvas": "^1.x",
+    "jspdf": "^2.x"
+  },
+  "devDependencies": {
+    "@types/d3": "^7.x",
+    "@types/react": "^18.x",
+    "@types/react-dom": "^18.x",
+    "typescript": "^5.x",
+    "vite": "^5.x",
+    "@vitejs/plugin-react": "^4.x"
+  }
+}
+```
+
+#### Backend (adicional para Fase 4):
+
+```xml
+<PackageReference Include="QuestPDF" Version="2024.x" />
+<PackageReference Include="SixLabors.ImageSharp" Version="3.x" />
+```
+
+### 🎯 Alineación con ADRs
+
+| ADR | Decisión | Aplicación en Fase 4 |
+|-----|----------|---------------------|
+| **ADR-001** | Stack Tecnológico Backend | ASP.NET Core 10 con Minimal APIs, Entity Framework Core, SQLite |
+| **ADR-003** | API First | Endpoints diseñados siguiendo OpenAPI 3.0, cliente TypeScript generado, documentación con Scalar |
+| **ADR-004** | Estructura del Proyecto | `frontend/src/components/`, `frontend/src/pages/`, `frontend/src/services/`, `frontend/src/hooks/`, `frontend/src/store/` |
+| **TECHNICAL.md** | Stack Frontend | React 18 + TypeScript, Vite, Material-UI, Video.js, Chart.js + D3.js, Axios, React Router, Zustand |
+
+### 📝 Plan de Implementación por Sprints
+
+#### Sprint 1: Estructura Base y Dashboard (3 días)
+
+**Objetivo**: Crear estructura de componentes y dashboard principal
+
+**Tareas**:
+1. Crear estructura de carpetas según ADR-004
+2. Instalar dependencias (MUI, Chart.js, D3.js, Video.js, Zustand)
+3. Crear layout principal con navegación
+4. Implementar dashboard con estadísticas básicas
+5. Crear endpoint `GET /api/dashboard/stats` en backend
+
+**Archivos a crear**:
+- `frontend/src/components/Layout.tsx`
+- `frontend/src/components/Navigation.tsx`
+- `frontend/src/pages/Dashboard.tsx`
+- `frontend/src/store/dashboardStore.ts`
+- `frontend/src/services/api/dashboardService.ts`
+
+**Backend**:
+- Agregar endpoint `GET /api/dashboard/stats` en Program.cs
+
+#### Sprint 2: Reproductor de Video (3 días)
+
+**Objetivo**: Implementar reproductor de video con soporte para seek
+
+**Tareas**:
+1. Implementar endpoint stream de video en backend
+2. Crear componente VideoPlayer con Video.js
+3. Integrar reproductor con lista de videos
+4. Agregar controles de reproducción
+
+**Archivos a crear**:
+- `frontend/src/components/VideoPlayer.tsx`
+- `frontend/src/pages/VideoView.tsx`
+- `frontend/src/services/api/videoStreamService.ts`
+
+**Backend**:
+- Agregar endpoint `GET /api/videos/{id}/stream` en Program.cs
+- Implementar range requests para seek
+
+#### Sprint 3: Heatmap con D3.js (3 días)
+
+**Objetivo**: Implementar visualización de heatmap con D3.js
+
+**Tareas**:
+1. Crear componente Heatmap con D3.js
+2. Implementar endpoint heatmap por jugador
+3. Integrar heatmap con reproductor de video
+4. Agregar controles de filtrado por jugador
+
+**Archivos a crear**:
+- `frontend/src/components/Heatmap.tsx`
+- `frontend/src/components/HeatmapControls.tsx`
+- `frontend/src/services/api/heatmapService.ts`
+
+**Backend**:
+- Agregar endpoint `GET /api/analyses/{id}/heatmap/player/{playerIndex}` en Program.cs
+
+#### Sprint 4: Visualizaciones Estadísticas (3 días)
+
+**Objetivo**: Implementar gráficos estadísticos con Chart.js
+
+**Tareas**:
+1. Crear componente StatisticsCharts con Chart.js
+2. Implementar endpoint stats por jugador
+3. Crear gráficos: detecciones, frames, tasa éxito
+4. Integrar con dashboard
+
+**Archivos a crear**:
+- `frontend/src/components/StatisticsCharts.tsx`
+- `frontend/src/components/DetectionChart.tsx`
+- `frontend/src/components/FrameChart.tsx`
+- `frontend/src/services/api/statsService.ts`
+
+**Backend**:
+- Agregar endpoint `GET /api/analyses/{id}/players/{playerIndex}/stats` en Program.cs
+
+#### Sprint 5: Timeline y Frames (2 días)
+
+**Objetivo**: Implementar timeline de eventos y visualización de frames
+
+**Tareas**:
+1. Crear componente Timeline con marcadores
+2. Implementar endpoint timeline de eventos
+3. Crear componente FrameViewer para frames específicos
+4. Integrar timeline con reproductor
+
+**Archivos a crear**:
+- `frontend/src/components/Timeline.tsx`
+- `frontend/src/components/FrameViewer.tsx`
+- `frontend/src/services/api/timelineService.ts`
+
+**Backend**:
+- Agregar endpoint `GET /api/analyses/{id}/timeline` en Program.cs
+- Agregar endpoint `GET /api/analyses/{id}/frames/{frameNumber}` en Program.cs
+
+#### Sprint 6: Reportes PDF y Testing (3 días)
+
+**Objetivo**: Implementar descarga de reportes PDF y testing
+
+**Tareas**:
+1. Crear componente ReportDownloader
+2. Implementar generación de PDF con QuestPDF
+3. Crear tests BDD para US-2 (Ver Estadísticas)
+4. Crear tests TDD para servicios de visualización
+
+**Archivos a crear**:
+- `frontend/src/components/ReportDownloader.tsx`
+- `frontend/src/services/api/reportService.ts`
+- `backend/src/AnalizadorPadel.Api/Services/ReportService.cs`
+- `tests/BDD/Features/US-2-VerEstadisticas.feature`
+- `tests/TDD/Services/HeatmapServiceTests.cs`
+- `tests/TDD/Services/StatsServiceTests.cs`
+
+**Backend**:
+- Agregar servicio `ReportService.cs` con QuestPDF
+- Implementar generación de PDF con estadísticas y heatmap
+
+### 🧪 Testing
+
+#### Tests BDD (SpecFlow):
+- US-2: Ver Estadísticas
+  - Escenario 1: Ver estadísticas de análisis completado
+  - Escenario 2: Ver heatmap de posiciones
+  - Escenario 3: Filtrar por jugador
+  - Escenario 4: Descargar reporte PDF
+  - Escenario 5: Ver timeline de eventos
+
+#### Tests TDD (xUnit + FluentAssertions):
+- HeatmapServiceTests
+  - Test: GetHeatmapAsync retorna datos correctos
+  - Test: GetHeatmapByPlayerAsync filtra correctamente
+  - Test: HandleAnalysisNotFound retorna null
+
+- StatsServiceTests
+  - Test: GetStatsAsync retorna estadísticas correctas
+  - Test: GetPlayerStatsAsync filtra por jugador
+  - Test: GetDashboardStatsAsync retorna datos dashboard
+
+- VideoStreamServiceTests
+  - Test: StreamVideoAsync retorna stream correcto
+  - Test: HandleRangeRequests funciona correctamente
+  - Test: HandleVideoNotFound retorna error
+
+### 📅 Timeline
+
+| Sprint | Duración | Entregables |
+|--------|----------|-------------|
+| Sprint 1 | 3 días | Dashboard, estructura base |
+| Sprint 2 | 3 días | Reproductor de video |
+| Sprint 3 | 3 días | Heatmap con D3.js |
+| Sprint 4 | 3 días | Visualizaciones Chart.js |
+| Sprint 5 | 2 días | Timeline y frames |
+| Sprint 6 | 3 días | Reportes PDF y testing |
+| **Total** | **17 días** | Fase 4 completa |
+
+### 🎯 Criterios de Éxito
+
+1. ✅ Dashboard muestra estadísticas en tiempo real
+2. ✅ Reproductor de video funciona con seek
+3. ✅ Heatmap muestra posiciones de jugadores
+4. ✅ Gráficos estadísticos renderizan correctamente
+5. ✅ Timeline muestra eventos del análisis
+6. ✅ Reporte PDF se genera y descarga
+7. ✅ Tests BDD pasan para US-2
+8. ✅ Tests TDD pasan para servicios de visualización
+
+### ⚠️ Riesgos y Mitigación
+
+| Riesgo | Probabilidad | Impacto | Mitigación |
+|--------|--------------|---------|------------|
+| D3.js complejo para heatmap | Media | Medio | Usar librería simple-heat como alternativa |
+| Video.js problemas de compatibilidad | Baja | Alto | Usar react-player como fallback |
+| PDF generación lenta | Media | Medio | Generar en background, mostrar progreso |
+| Chart.js rendimiento con muchos datos | Baja | Medio | Implementar sampling de datos |
+
+---
+
+*Última actualización: 15 de Marzo de 2026*
