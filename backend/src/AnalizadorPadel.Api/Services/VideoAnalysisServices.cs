@@ -104,6 +104,56 @@ public class VideoService
         return MapToDto(entity);
     }
 
+    public async Task<DashboardStats> GetDashboardStatsAsync()
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        
+        // Use database-level counting to avoid loading all entities into memory
+        var totalVideos = await db.Videos.CountAsync();
+        var totalAnalyses = await db.Analyses.CountAsync();
+        var completedAnalyses = await db.Analyses.CountAsync(a => a.Status == nameof(AnalysisStatus.Completed));
+        var failedAnalyses = await db.Analyses.CountAsync(a => a.Status == nameof(AnalysisStatus.Failed));
+        var successRate = totalAnalyses > 0 ? (double)completedAnalyses / totalAnalyses * 100 : 0;
+        
+        var avgDetectionRate = await db.Analyses
+            .Where(a => a.DetectionRatePercent.HasValue)
+            .Select(a => a.DetectionRatePercent!.Value)
+            .ToListAsync();
+        var avgDetectionRateValue = avgDetectionRate.Count > 0 ? avgDetectionRate.Average() : 0;
+        
+        var recentVideoEntities = await db.Videos
+            .OrderByDescending(v => v.UploadedAt)
+            .Take(5)
+            .ToListAsync();
+        var recentVideos = recentVideoEntities.Select(MapToDto).ToList();
+        
+        // Load recent analyses (limited to 5) - select status as string then parse in memory
+        var recentAnalysisEntities = await db.Analyses
+            .OrderByDescending(a => a.StartedAt)
+            .Take(5)
+            .ToListAsync();
+        var recentAnalyses = recentAnalysisEntities.Select(a => new AnalysisDto(
+            Id: a.Id,
+            VideoId: a.VideoId,
+            StartedAt: a.StartedAt,
+            CompletedAt: a.CompletedAt,
+            Status: Enum.TryParse<AnalysisStatus>(a.Status, out var parsed) ? parsed : AnalysisStatus.Pending,
+            ErrorMessage: a.ErrorMessage,
+            Result: null
+        )).ToList();
+        
+        return new DashboardStats(
+            TotalVideos: totalVideos,
+            TotalAnalyses: totalAnalyses,
+            CompletedAnalyses: completedAnalyses,
+            FailedAnalyses: failedAnalyses,
+            SuccessRatePercent: successRate,
+            AvgDetectionRate: avgDetectionRateValue,
+            RecentVideos: recentVideos,
+            RecentAnalyses: recentAnalyses
+        );
+    }
+
     /// <summary>
     /// Gets the file path for a video (internal use by AnalysisService)
     /// </summary>

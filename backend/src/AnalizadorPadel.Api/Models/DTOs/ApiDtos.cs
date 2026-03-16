@@ -101,6 +101,20 @@ public record HeatmapPoint(
 );
 
 /// <summary>
+/// Estadísticas del dashboard
+/// </summary>
+public record DashboardStats(
+    int TotalVideos,
+    int TotalAnalyses,
+    int CompletedAnalyses,
+    int FailedAnalyses,
+    double SuccessRatePercent,
+    double AvgDetectionRate,
+    List<VideoDto> RecentVideos,
+    List<AnalysisDto> RecentAnalyses
+);
+
+/// <summary>
 /// Response genérico para operaciones
 /// </summary>
 /// <typeparam name="T">Tipo de datos</typeparam>

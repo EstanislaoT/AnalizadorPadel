@@ -265,6 +265,20 @@ try
         .WithName("HealthCheck")
         .WithSummary("Health check endpoint");
 
+    // ============================================
+    // DASHBOARD ENDPOINTS
+    // ============================================
+
+    // GET /api/dashboard/stats - Estadísticas del dashboard
+    app.MapGet("/api/dashboard/stats", async (VideoService videoService) =>
+    {
+        var stats = await videoService.GetDashboardStatsAsync();
+        return Results.Ok(new ApiResponse<DashboardStats>(true, "Estadísticas del dashboard", stats));
+    })
+    .WithName("GetDashboardStats")
+    .WithSummary("Obtiene estadísticas del dashboard")
+    .WithDescription("Retorna las estadísticas generales del dashboard: total de videos, análisis completados, tasa de éxito, etc.");
+
     Log.Information("AnalizadorPadel API started");
     app.Run();
 }
