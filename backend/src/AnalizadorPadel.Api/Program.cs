@@ -174,6 +174,142 @@ try
     .WithSummary("Elimina un video")
     .WithDescription("Elimina un video y sus archivos asociados");
 
+    // GET /api/videos/{id}/stream - Stream video with Range support
+    app.MapGet("/api/videos/{id:int}/stream", async (int id, VideoService videoService, HttpContext context) =>
+    {
+        var video = await videoService.GetByIdAsync(id);
+        if (video == null)
+        {
+            return Results.NotFound(new ApiResponse<object>(false, $"Video {id} no encontrado"));
+        }
+
+        var filePath = video.FilePath;
+        if (!File.Exists(filePath))
+        {
+            return Results.NotFound(new ApiResponse<object>(false, "Archivo de video no encontrado en el servidor"));
+        }
+
+        var fileInfo = new FileInfo(filePath);
+        var fileSize = fileInfo.Length;
+        var extension = Path.GetExtension(filePath);
+        var mimeType = GetMimeType(extension);
+
+        // Get Range header if present
+        var rangeHeader = context.Request.Headers.Range.FirstOrDefault();
+        
+        if (string.IsNullOrEmpty(rangeHeader))
+        {
+            // No Range header - return full file with Accept-Ranges header
+            context.Response.ContentType = mimeType;
+            context.Response.ContentLength = fileSize;
+            context.Response.Headers.AcceptRanges = "bytes";
+
+            return Results.File(filePath, mimeType);
+        }
+
+        // Parse Range header
+        var range = ParseRangeHeader(rangeHeader, fileSize);
+        if (range == null)
+        {
+            context.Response.StatusCode = 416; // Range Not Satisfiable
+            context.Response.Headers.ContentRange = $"bytes */{fileSize}";
+            return Results.BadRequest(new ApiResponse<object>(false, "Rango inválido"));
+        }
+
+        var (start, end) = range.Value;
+        var contentLength = end - start + 1;
+
+        // Return 206 Partial Content - manually stream the range
+        context.Response.StatusCode = 206;
+        context.Response.ContentType = mimeType;
+        context.Response.ContentLength = contentLength;
+        context.Response.Headers.AcceptRanges = "bytes";
+        context.Response.Headers.ContentRange = $"bytes {start}-{end}/{fileSize}";
+
+        await StreamFileRange(context, filePath, start, end);
+        return Results.Empty;
+    })
+    .WithName("StreamVideo")
+    .WithSummary("Stream de video")
+    .WithDescription("Reproduce un video con soporte para Range requests (206 Partial Content). Permite seek y descarga progresiva");
+
+    // Helper method to get MIME type
+    static string GetMimeType(string extension)
+    {
+        return extension?.ToLowerInvariant() switch
+        {
+            ".mp4" => "video/mp4",
+            ".webm" => "video/webm",
+            ".avi" => "video/x-msvideo",
+            ".mov" => "video/quicktime",
+            ".mkv" => "video/x-matroska",
+            _ => "application/octet-stream"
+        };
+    }
+
+    // Helper method to stream a specific range of a file
+    static async Task StreamFileRange(HttpContext context, string filePath, long start, long end)
+    {
+        const int bufferSize = 81920; // 80KB buffer
+        var buffer = new byte[bufferSize];
+
+        await using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize, FileOptions.Asynchronous);
+        fileStream.Seek(start, SeekOrigin.Begin);
+
+        var bytesRemaining = end - start + 1;
+        while (bytesRemaining > 0)
+        {
+            var bytesToRead = (int)Math.Min(bufferSize, bytesRemaining);
+            var bytesRead = await fileStream.ReadAsync(buffer.AsMemory(0, bytesToRead));
+            if (bytesRead == 0) break;
+
+            await context.Response.Body.WriteAsync(buffer.AsMemory(0, bytesRead));
+            bytesRemaining -= bytesRead;
+        }
+    }
+
+    // Helper method to parse Range header
+    static (long Start, long End)? ParseRangeHeader(string? rangeHeader, long fileSize)
+    {
+        if (string.IsNullOrEmpty(rangeHeader)) return null;
+
+        // Expected format: "bytes=start-end"
+        if (!rangeHeader.StartsWith("bytes=")) return null;
+
+        var rangePart = rangeHeader.Substring(6);
+        var parts = rangePart.Split('-');
+
+        if (parts.Length != 2) return null;
+
+        long start, end;
+
+        if (string.IsNullOrEmpty(parts[0]))
+        {
+            // Suffix range: "-500" means last 500 bytes
+            if (!long.TryParse(parts[1], out end)) return null;
+            start = Math.Max(0, fileSize - end);
+            end = fileSize - 1;
+        }
+        else if (string.IsNullOrEmpty(parts[1]))
+        {
+            // Open-ended range: "500-" means from byte 500 to end
+            if (!long.TryParse(parts[0], out start)) return null;
+            end = fileSize - 1;
+        }
+        else
+        {
+            // Explicit range: "0-499"
+            if (!long.TryParse(parts[0], out start)) return null;
+            if (!long.TryParse(parts[1], out end)) return null;
+        }
+
+        // Validate range
+        if (start > end || start >= fileSize) return null;
+        end = Math.Min(end, fileSize - 1);
+
+        return (start, end);
+    }
+
     // ============================================
     // ANALYSIS ENDPOINTS
     // ============================================

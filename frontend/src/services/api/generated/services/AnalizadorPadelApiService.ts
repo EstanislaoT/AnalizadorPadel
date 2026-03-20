@@ -3,6 +3,7 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { ApiResponseOfObject } from '../models/ApiResponseOfObject';
+import type { ApiResponseOfDashboardStats } from '../models/ApiResponseOfDashboardStats';
 import type { IFormFile } from '../models/IFormFile';
 import type { CancelablePromise } from '../core/CancelablePromise';
 import { OpenAPI } from '../core/OpenAPI';
@@ -72,6 +73,28 @@ export class AnalizadorPadelApiService {
             url: '/api/videos/{id}',
             path: {
                 'id': id,
+            },
+        });
+    }
+    /**
+     * Stream de video
+     * Reproduce un video con soporte para Range requests (206 Partial Content). Permite seek y descarga progresiva
+     * @param id
+     * @returns any OK - Video completo (sin Range header)
+     * @throws ApiError
+     */
+    public static streamVideo(
+        id: number,
+    ): CancelablePromise<any> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/videos/{id}/stream',
+            path: {
+                'id': id,
+            },
+            errors: {
+                404: 'Video no encontrado',
+                416: 'Range Not Satisfiable - Rango inválido',
             },
         });
     }
@@ -174,6 +197,18 @@ export class AnalizadorPadelApiService {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/api/health',
+        });
+    }
+    /**
+     * Obtiene estadísticas del dashboard
+     * Retorna las estadísticas generales del dashboard: total de videos, análisis completados, tasa de éxito, etc.
+     * @returns ApiResponseOfDashboardStats OK
+     * @throws ApiError
+     */
+    public static getDashboardStats(): CancelablePromise<ApiResponseOfDashboardStats> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/dashboard/stats',
         });
     }
 }

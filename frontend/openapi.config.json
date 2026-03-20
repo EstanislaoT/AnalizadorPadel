@@ -1,0 +1,12 @@
+{
+  "generatorName": "typescript-axios",
+  "inputSpec": "../backend/src/AnalizadorPadel.Api/openapi.json",
+  "output": "./src/services/api/generated",
+  "additionalProperties": {
+    "apiPackage": "services/api",
+    "modelPackage": "services/api/models",
+    "supportsES6": true,
+    "withInterfaces": true,
+    "useSingleRequestParameter": false
+  }
+}

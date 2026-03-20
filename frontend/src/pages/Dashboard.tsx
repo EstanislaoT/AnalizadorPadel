@@ -1,57 +1,16 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { Box, Grid, Card, CardContent, Typography, CircularProgress, Alert, List, ListItem, ListItemText, Chip, Paper } from '@mui/material';
 import { VideoLibrary, Analytics, CheckCircle, TrendingUp } from '@mui/icons-material';
-import axios from 'axios';
-
-interface DashboardStats {
-  totalVideos: number;
-  totalAnalyses: number;
-  completedAnalyses: number;
-  failedAnalyses: number;
-  successRatePercent: number;
-  avgDetectionRate: number;
-  recentVideos: Array<{
-    id: number;
-    name: string;
-    status: string;
-    uploadedAt: string;
-  }>;
-  recentAnalyses: Array<{
-    id: number;
-    videoId: number;
-    status: string;
-    startedAt: string;
-  }>;
-}
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+import { useDashboardStore } from '../store/dashboardStore';
 
 export const Dashboard: React.FC = () => {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { stats, loading, error, fetchStats } = useDashboardStore();
 
   useEffect(() => {
-    const fetchDashboardStats = async () => {
-      try {
-        const response = await axios.get(`${API_BASE_URL}/dashboard/stats`);
-        if (response.data.success) {
-          setStats(response.data.data);
-        } else {
-          setError(response.data.message);
-        }
-      } catch (err) {
-        setError('Error al cargar las estadísticas del dashboard');
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
+    fetchStats();
+  }, [fetchStats]);
 
-    fetchDashboardStats();
-  }, []);
-
-  const getStatusColor = (status: string): 'success' | 'warning' | 'error' | 'default' | 'info' => {
+  const getStatusColor = (status: string | undefined): 'success' | 'warning' | 'error' | 'default' | 'info' => {
     switch (status) {
       case 'Completed':
         return 'success';
@@ -97,7 +56,7 @@ export const Dashboard: React.FC = () => {
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Box>
                   <Typography variant="h6">Videos</Typography>
-                  <Typography variant="h3">{stats?.totalVideos || 0}</Typography>
+                  <Typography variant="h3">{stats?.totalVideos ?? 0}</Typography>
                 </Box>
                 <VideoLibrary sx={{ fontSize: 48, opacity: 0.7 }} />
               </Box>
@@ -111,7 +70,7 @@ export const Dashboard: React.FC = () => {
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Box>
                   <Typography variant="h6">Análisis</Typography>
-                  <Typography variant="h3">{stats?.totalAnalyses || 0}</Typography>
+                  <Typography variant="h3">{stats?.totalAnalyses ?? 0}</Typography>
                 </Box>
                 <Analytics sx={{ fontSize: 48, opacity: 0.7 }} />
               </Box>
@@ -125,7 +84,7 @@ export const Dashboard: React.FC = () => {
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Box>
                   <Typography variant="h6">Exitosos</Typography>
-                  <Typography variant="h3">{stats?.completedAnalyses || 0}</Typography>
+                  <Typography variant="h3">{stats?.completedAnalyses ?? 0}</Typography>
                 </Box>
                 <CheckCircle sx={{ fontSize: 48, opacity: 0.7 }} />
               </Box>
@@ -134,12 +93,12 @@ export const Dashboard: React.FC = () => {
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ bgcolor: stats && stats.successRatePercent >= 70 ? '#2e7d32' : '#d32f2f', color: 'white' }}>
+          <Card sx={{ bgcolor: stats && (stats.successRatePercent ?? 0) >= 70 ? '#2e7d32' : '#d32f2f', color: 'white' }}>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Box>
                   <Typography variant="h6">Tasa de Éxito</Typography>
-                  <Typography variant="h3">{stats?.successRatePercent.toFixed(1)}%</Typography>
+                  <Typography variant="h3">{(stats?.successRatePercent ?? 0).toFixed(1)}%</Typography>
                 </Box>
                 <TrendingUp sx={{ fontSize: 48, opacity: 0.7 }} />
               </Box>
@@ -161,7 +120,7 @@ export const Dashboard: React.FC = () => {
                   <ListItem key={video.id} divider>
                     <ListItemText
                       primary={video.name}
-                      secondary={`Subido: ${new Date(video.uploadedAt).toLocaleDateString()}`}
+                      secondary={`Subido: ${video.uploadedAt ? new Date(video.uploadedAt).toLocaleDateString() : 'N/A'}`}
                     />
                     <Chip
                       label={video.status}
@@ -190,7 +149,7 @@ export const Dashboard: React.FC = () => {
                   <ListItem key={analysis.id} divider>
                     <ListItemText
                       primary={`Análisis #${analysis.id}`}
-                      secondary={`Video #${analysis.videoId} - Iniciado: ${new Date(analysis.startedAt).toLocaleDateString()}`}
+                      secondary={`Video #${analysis.videoId} - Iniciado: ${analysis.startedAt ? new Date(analysis.startedAt).toLocaleDateString() : 'N/A'}`}
                     />
                     <Chip
                       label={analysis.status}
@@ -210,16 +169,16 @@ export const Dashboard: React.FC = () => {
       </Grid>
 
       {/* Detection Rate Info */}
-      {stats && stats.totalAnalyses > 0 && (
+      {stats && (stats.totalAnalyses ?? 0) > 0 && (
         <Paper sx={{ p: 2, mt: 3, bgcolor: '#f5f5f5' }}>
           <Typography variant="h6" sx={{ mb: 1 }}>
             📊 Información Adicional
           </Typography>
           <Typography variant="body2">
-            <strong>Tasa de detección promedio:</strong> {stats.avgDetectionRate.toFixed(1)}%
+            <strong>Tasa de detección promedio:</strong> {(stats.avgDetectionRate ?? 0).toFixed(1)}%
           </Typography>
           <Typography variant="body2">
-            <strong>Análisis fallidos:</strong> {stats.failedAnalyses}
+            <strong>Análisis fallidos:</strong> {stats.failedAnalyses ?? 0}
           </Typography>
         </Paper>
       )}
