@@ -4,14 +4,14 @@ import { MemoryRouter } from 'react-router-dom'
 import { Dashboard } from './Dashboard'
 
 describe('Dashboard', () => {
-  it('renders dashboard title', () => {
+  it('renders dashboard title', async () => {
     render(
       <MemoryRouter>
         <Dashboard />
       </MemoryRouter>
     )
 
-    expect(screen.getByTestId('dashboard-title')).toBeInTheDocument()
+    expect(await screen.findByTestId('dashboard-title')).toBeInTheDocument()
     expect(screen.getByText(/dashboard/i)).toBeInTheDocument()
   })
 
@@ -33,8 +33,8 @@ describe('Dashboard', () => {
     }, { timeout: 5000 })
 
     // Verificar que aparecen estadísticas (buscar por texto de las cards)
-    expect(screen.getByText(/videos/i)).toBeInTheDocument()
-    expect(screen.getByText(/análisis/i)).toBeInTheDocument()
+    expect(screen.getByText('Videos')).toBeInTheDocument()
+    expect(screen.getByText('Análisis')).toBeInTheDocument()
   }, 10000)
 
   it('renders recent videos section', async () => {

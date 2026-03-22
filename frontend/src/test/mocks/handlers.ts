@@ -5,7 +5,6 @@ import type { components } from '../../services/api/generated/types';
 type VideoDto = components['schemas']['VideoDto'];
 type AnalysisDto = components['schemas']['AnalysisDto'];
 type DashboardStats = components['schemas']['DashboardStats'];
-type ApiResponseOfObject = components['schemas']['ApiResponseOfObject'];
 type ApiResponseOfDashboardStats = components['schemas']['ApiResponseOfDashboardStats'];
 
 // Helper type for API responses
@@ -106,19 +105,6 @@ const mockHeatmapData = {
     intensity: Math.floor(Math.random() * 10) + 1,
   })),
   courtDimensions: '23.77m x 10.97m',
-};
-
-// Helper to create handlers for both path-only and full URL patterns
-const createHandler = (method: string, path: string, handler: any) => {
-  const fullPath = path.startsWith('/') ? path : `/${path}`;
-  return [
-    // Path-only pattern (e.g., /api/health)
-    (http as any)[method](fullPath, handler),
-    // Full URL pattern (e.g., http://localhost:5000/api/health)
-    (http as any)[method](`http://localhost:5000${fullPath}`, handler),
-    // Also support any localhost port
-    (http as any)[method](`http://localhost:*/${fullPath.replace(/^\//, '')}`, handler),
-  ];
 };
 
 // MSW Handlers

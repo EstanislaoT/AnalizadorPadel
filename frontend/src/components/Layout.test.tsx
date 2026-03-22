@@ -28,7 +28,7 @@ describe('Layout', () => {
       </MemoryRouter>
     )
 
-    expect(screen.getByText(/analizador.*padel/i)).toBeInTheDocument()
+    expect(screen.getByText('🎾 Analizador de Pádel')).toBeInTheDocument()
   })
 
   it('renders navigation drawer or menu', () => {
