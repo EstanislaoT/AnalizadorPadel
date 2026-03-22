@@ -13,14 +13,48 @@ namespace AnalizadorPadel.Api.Tests.BDD.StepDefinitions;
 [Binding]
 public class AnalysisSteps : IntegrationTestBase
 {
-    private HttpResponseMessage? _response;
-    private ApiResponse<AnalysisStats>? _statsResponse;
-    private ApiResponse<HeatmapData>? _heatmapResponse;
-    private ApiResponse<DashboardStats>? _dashboardResponse;
-    private ApiResponse<string>? _reportResponse;
+    private const string ResponseKey = "HttpResponse";
+    private const string StatsResponseKey = "AnalysisStatsResponse";
+    private const string HeatmapResponseKey = "HeatmapResponse";
+    private const string DashboardResponseKey = "DashboardResponse";
+    private const string ReportResponseKey = "ReportResponse";
+    private const string TotalAnalysesKey = "TotalAnalyses";
 
-    public AnalysisSteps(CustomWebApplicationFactory factory) : base(factory)
+    private readonly ScenarioContext _scenarioContext;
+
+    private HttpResponseMessage? Response
     {
+        get => _scenarioContext.TryGetValue<HttpResponseMessage>(ResponseKey, out var response) ? response : null;
+        set => _scenarioContext[ResponseKey] = value!;
+    }
+
+    private ApiResponse<AnalysisStats>? StatsResponse
+    {
+        get => _scenarioContext.TryGetValue<ApiResponse<AnalysisStats>>(StatsResponseKey, out var response) ? response : null;
+        set => _scenarioContext[StatsResponseKey] = value!;
+    }
+
+    private ApiResponse<HeatmapData>? HeatmapResponse
+    {
+        get => _scenarioContext.TryGetValue<ApiResponse<HeatmapData>>(HeatmapResponseKey, out var response) ? response : null;
+        set => _scenarioContext[HeatmapResponseKey] = value!;
+    }
+
+    private ApiResponse<DashboardStats>? DashboardResponse
+    {
+        get => _scenarioContext.TryGetValue<ApiResponse<DashboardStats>>(DashboardResponseKey, out var response) ? response : null;
+        set => _scenarioContext[DashboardResponseKey] = value!;
+    }
+
+    private ApiResponse<string>? ReportResponse
+    {
+        get => _scenarioContext.TryGetValue<ApiResponse<string>>(ReportResponseKey, out var response) ? response : null;
+        set => _scenarioContext[ReportResponseKey] = value!;
+    }
+
+    public AnalysisSteps(CustomWebApplicationFactory factory, ScenarioContext scenarioContext) : base(factory)
+    {
+        _scenarioContext = scenarioContext;
     }
 
     [Given("existe un análisis completado en el sistema")]
@@ -48,7 +82,8 @@ public class AnalysisSteps : IntegrationTestBase
         using var scope = Factory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<PadelDbContext>();
 
-        for (int i = 0; i < count; i++)
+        var existingVideos = await dbContext.Videos.CountAsync();
+        for (int i = existingVideos; i < count; i++)
         {
             var video = new VideoEntity
             {
@@ -70,34 +105,56 @@ public class AnalysisSteps : IntegrationTestBase
         using var scope = Factory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<PadelDbContext>();
 
-        for (int i = 0; i < count; i++)
+        var existingCompleted = await dbContext.Analyses.CountAsync(a => a.Status == nameof(AnalysisStatus.Completed));
+        var analysesToCreate = count - existingCompleted;
+        if (analysesToCreate <= 0)
         {
-            var video = new VideoEntity
+            return;
+        }
+
+        var candidateVideos = await dbContext.Videos
+            .Where(v => !dbContext.Analyses.Any(a => a.VideoId == v.Id))
+            .OrderBy(v => v.UploadedAt)
+            .ToListAsync();
+
+        for (int i = 0; i < analysesToCreate; i++)
+        {
+            VideoEntity video;
+            if (i < candidateVideos.Count)
             {
-                Name = $"Video {i + 1}",
-                FilePath = $"/path/video{i + 1}.mp4",
-                FileSizeBytes = 1024,
-                FileExtension = ".mp4",
-                UploadedAt = DateTime.UtcNow.AddMinutes(-i),
-                Status = nameof(VideoStatus.Completed)
-            };
-            dbContext.Videos.Add(video);
-            await dbContext.SaveChangesAsync();
+                video = candidateVideos[i];
+                video.Status = nameof(VideoStatus.Completed);
+            }
+            else
+            {
+                video = new VideoEntity
+                {
+                    Name = $"Video {existingCompleted + i + 1}",
+                    FilePath = $"/path/video{existingCompleted + i + 1}.mp4",
+                    FileSizeBytes = 1024,
+                    FileExtension = ".mp4",
+                    UploadedAt = DateTime.UtcNow.AddMinutes(-(existingCompleted + i)),
+                    Status = nameof(VideoStatus.Completed)
+                };
+                dbContext.Videos.Add(video);
+                await dbContext.SaveChangesAsync();
+            }
 
             var analysis = new AnalysisEntity
             {
                 VideoId = video.Id,
                 Status = nameof(AnalysisStatus.Completed),
-                StartedAt = DateTime.UtcNow.AddHours(-i),
-                CompletedAt = DateTime.UtcNow.AddHours(-i).AddMinutes(10),
+                StartedAt = DateTime.UtcNow.AddHours(-(existingCompleted + i)),
+                CompletedAt = DateTime.UtcNow.AddHours(-(existingCompleted + i)).AddMinutes(10),
                 TotalFrames = 1000,
                 PlayersDetected = 4,
                 DetectionRatePercent = 85.0,
                 ModelUsed = "yolov8m.pt"
             };
             dbContext.Analyses.Add(analysis);
-            await dbContext.SaveChangesAsync();
         }
+
+        await dbContext.SaveChangesAsync();
     }
 
     [Given("existen (\\d+) análisis fallido")]
@@ -106,31 +163,53 @@ public class AnalysisSteps : IntegrationTestBase
         using var scope = Factory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<PadelDbContext>();
 
-        for (int i = 0; i < count; i++)
+        var existingFailed = await dbContext.Analyses.CountAsync(a => a.Status == nameof(AnalysisStatus.Failed));
+        var analysesToCreate = count - existingFailed;
+        if (analysesToCreate <= 0)
         {
-            var video = new VideoEntity
+            return;
+        }
+
+        var candidateVideos = await dbContext.Videos
+            .Where(v => !dbContext.Analyses.Any(a => a.VideoId == v.Id))
+            .OrderBy(v => v.UploadedAt)
+            .ToListAsync();
+
+        for (int i = 0; i < analysesToCreate; i++)
+        {
+            VideoEntity video;
+            if (i < candidateVideos.Count)
             {
-                Name = $"Failed Video {i + 1}",
-                FilePath = $"/path/failed{i + 1}.mp4",
-                FileSizeBytes = 1024,
-                FileExtension = ".mp4",
-                UploadedAt = DateTime.UtcNow.AddMinutes(-i),
-                Status = nameof(VideoStatus.Failed)
-            };
-            dbContext.Videos.Add(video);
-            await dbContext.SaveChangesAsync();
+                video = candidateVideos[i];
+                video.Status = nameof(VideoStatus.Failed);
+            }
+            else
+            {
+                video = new VideoEntity
+                {
+                    Name = $"Failed Video {existingFailed + i + 1}",
+                    FilePath = $"/path/failed{existingFailed + i + 1}.mp4",
+                    FileSizeBytes = 1024,
+                    FileExtension = ".mp4",
+                    UploadedAt = DateTime.UtcNow.AddMinutes(-(existingFailed + i)),
+                    Status = nameof(VideoStatus.Failed)
+                };
+                dbContext.Videos.Add(video);
+                await dbContext.SaveChangesAsync();
+            }
 
             var analysis = new AnalysisEntity
             {
                 VideoId = video.Id,
                 Status = nameof(AnalysisStatus.Failed),
-                StartedAt = DateTime.UtcNow.AddHours(-i),
-                CompletedAt = DateTime.UtcNow.AddHours(-i).AddMinutes(5),
+                StartedAt = DateTime.UtcNow.AddHours(-(existingFailed + i)),
+                CompletedAt = DateTime.UtcNow.AddHours(-(existingFailed + i)).AddMinutes(5),
                 ErrorMessage = "Processing timeout"
             };
             dbContext.Analyses.Add(analysis);
-            await dbContext.SaveChangesAsync();
         }
+
+        await dbContext.SaveChangesAsync();
     }
 
     [Given("se han completado (\\d+) análisis")]
@@ -148,91 +227,148 @@ public class AnalysisSteps : IntegrationTestBase
     [Given("existen (\\d+) análisis en total")]
     public async Task GivenExistenAnalisisEnTotal(int count)
     {
-        await GivenExistenAnalisisCompletados(count);
+        _scenarioContext[TotalAnalysesKey] = count;
+        await Factory.ResetStateAsync();
+
+        using var scope = Factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PadelDbContext>();
+
+        for (int i = 0; i < count; i++)
+        {
+            var video = new VideoEntity
+            {
+                Name = $"Scenario Video {i + 1}",
+                FilePath = $"/path/scenario-video{i + 1}.mp4",
+                FileSizeBytes = 1024,
+                FileExtension = ".mp4",
+                UploadedAt = DateTime.UtcNow.AddMinutes(-i),
+                Status = nameof(VideoStatus.Failed)
+            };
+            dbContext.Videos.Add(video);
+            await dbContext.SaveChangesAsync();
+
+            var analysis = new AnalysisEntity
+            {
+                VideoId = video.Id,
+                Status = nameof(AnalysisStatus.Failed),
+                StartedAt = DateTime.UtcNow.AddHours(-i),
+                CompletedAt = DateTime.UtcNow.AddHours(-i).AddMinutes(5),
+                ErrorMessage = "Scenario seeded failure"
+            };
+            dbContext.Analyses.Add(analysis);
+            await dbContext.SaveChangesAsync();
+        }
     }
 
     [Given(@"(\d+) análisis están completados")]
     public async Task GivenAnalisisEstanCompletados(int count)
     {
-        // Additional completed analyses - handled in the When step context
+        var total = _scenarioContext.TryGetValue<int>(TotalAnalysesKey, out var totalAnalyses) ? totalAnalyses : 0;
+        count.Should().BeLessThanOrEqualTo(total);
+
+        using var scope = Factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PadelDbContext>();
+        var analyses = await dbContext.Analyses
+            .OrderBy(a => a.Id)
+            .Take(count)
+            .ToListAsync();
+
+        foreach (var analysis in analyses)
+        {
+            analysis.Status = nameof(AnalysisStatus.Completed);
+            analysis.CompletedAt = DateTime.UtcNow;
+            analysis.TotalFrames = 1000;
+            analysis.PlayersDetected = 4;
+            analysis.DetectionRatePercent = 85.0;
+            analysis.ModelUsed = "yolov8m.pt";
+
+            var video = await dbContext.Videos.FindAsync(analysis.VideoId);
+            if (video != null)
+            {
+                video.Status = nameof(VideoStatus.Completed);
+                video.AnalysisId = analysis.Id;
+            }
+        }
+
+        await dbContext.SaveChangesAsync();
     }
 
     [When("el usuario solicita las estadísticas del análisis (\\d+)")]
     public async Task WhenElUsuarioSolicitaLasEstadisticasDelAnalisis(int id)
     {
-        _response = await Client.GetAsync($"/api/analyses/{id}/stats");
-        if (_response.IsSuccessStatusCode)
+        Response = await Client.GetAsync($"/api/analyses/{id}/stats");
+        if (Response.IsSuccessStatusCode)
         {
-            _statsResponse = await _response.Content.ReadFromJsonAsync<ApiResponse<AnalysisStats>>();
+            StatsResponse = await Response.Content.ReadFromJsonAsync<ApiResponse<AnalysisStats>>();
         }
     }
 
     [When("el usuario solicita los datos del heatmap del análisis (\\d+)")]
     public async Task WhenElUsuarioSolicitaLosDatosDelHeatmapDelAnalisis(int id)
     {
-        _response = await Client.GetAsync($"/api/analyses/{id}/heatmap");
-        if (_response.IsSuccessStatusCode)
+        Response = await Client.GetAsync($"/api/analyses/{id}/heatmap");
+        if (Response.IsSuccessStatusCode)
         {
-            _heatmapResponse = await _response.Content.ReadFromJsonAsync<ApiResponse<HeatmapData>>();
+            HeatmapResponse = await Response.Content.ReadFromJsonAsync<ApiResponse<HeatmapData>>();
         }
     }
 
     [When("el usuario solicita las estadísticas del dashboard")]
     public async Task WhenElUsuarioSolicitaLasEstadisticasDelDashboard()
     {
-        _response = await Client.GetAsync("/api/dashboard/stats");
-        if (_response.IsSuccessStatusCode)
+        Response = await Client.GetAsync("/api/dashboard/stats");
+        if (Response.IsSuccessStatusCode)
         {
-            _dashboardResponse = await _response.Content.ReadFromJsonAsync<ApiResponse<DashboardStats>>();
+            DashboardResponse = await Response.Content.ReadFromJsonAsync<ApiResponse<DashboardStats>>();
         }
     }
 
     [When("el usuario solicita el reporte del análisis (\\d+)")]
     public async Task WhenElUsuarioSolicitaElReporteDelAnalisis(int id)
     {
-        _response = await Client.GetAsync($"/api/analyses/{id}/report");
-        if (_response.IsSuccessStatusCode)
+        Response = await Client.GetAsync($"/api/analyses/{id}/report");
+        if (Response.IsSuccessStatusCode)
         {
-            _reportResponse = await _response.Content.ReadFromJsonAsync<ApiResponse<string>>();
+            ReportResponse = await Response.Content.ReadFromJsonAsync<ApiResponse<string>>();
         }
     }
 
     [Then("las estadísticas incluyen frames totales")]
     public void ThenLasEstadisticasIncluyenFramesTotales()
     {
-        _statsResponse.Should().NotBeNull();
-        _statsResponse!.Data.Should().NotBeNull();
-        _statsResponse.Data!.TotalFrames.Should().BeGreaterThan(0);
+        StatsResponse.Should().NotBeNull();
+        StatsResponse!.Data.Should().NotBeNull();
+        StatsResponse.Data!.TotalFrames.Should().BeGreaterThan(0);
     }
 
     [Then("las estadísticas incluyen tasa de detección")]
     public void ThenLasEstadisticasIncluyenTasaDeDeteccion()
     {
-        _statsResponse.Should().NotBeNull();
-        _statsResponse!.Data.Should().NotBeNull();
-        _statsResponse.Data!.DetectionRatePercent.Should().BeGreaterThanOrEqualTo(0);
+        StatsResponse.Should().NotBeNull();
+        StatsResponse!.Data.Should().NotBeNull();
+        StatsResponse.Data!.DetectionRatePercent.Should().BeGreaterThanOrEqualTo(0);
     }
 
     [Then("las estadísticas incluyen tiempo de procesamiento")]
     public void ThenLasEstadisticasIncluyenTiempoDeProcesamiento()
     {
-        _statsResponse.Should().NotBeNull();
-        _statsResponse!.Data.Should().NotBeNull();
-        _statsResponse.Data!.ProcessingTimeSeconds.Should().BeGreaterThanOrEqualTo(0);
+        StatsResponse.Should().NotBeNull();
+        StatsResponse!.Data.Should().NotBeNull();
+        StatsResponse.Data!.ProcessingTimeSeconds.Should().BeGreaterThanOrEqualTo(0);
     }
 
     [Then("las estadísticas incluyen modelo utilizado")]
     public void ThenLasEstadisticasIncluyenModeloUtilizado()
     {
-        _statsResponse.Should().NotBeNull();
-        _statsResponse!.Data.Should().NotBeNull();
-        _statsResponse.Data!.ModelUsed.Should().NotBeNullOrEmpty();
+        StatsResponse.Should().NotBeNull();
+        StatsResponse!.Data.Should().NotBeNull();
+        StatsResponse.Data!.ModelUsed.Should().NotBeNullOrEmpty();
     }
 
     [Then("el mensaje indica \"(.*)\"")]
     public async Task ThenElMensajeIndica(string expectedMessage)
     {
-        var content = await _response!.Content.ReadFromJsonAsync<ApiResponse<object>>();
+        var content = await Response!.Content.ReadFromJsonAsync<ApiResponse<object>>();
         content.Should().NotBeNull();
         content!.Message.Should().Contain(expectedMessage);
     }
@@ -240,18 +376,18 @@ public class AnalysisSteps : IntegrationTestBase
     [Then("el heatmap contiene (\\d+) puntos")]
     public void ThenElHeatmapContienePuntos(int expectedCount)
     {
-        _heatmapResponse.Should().NotBeNull();
-        _heatmapResponse!.Data.Should().NotBeNull();
-        _heatmapResponse.Data!.Points.Should().HaveCount(expectedCount);
+        HeatmapResponse.Should().NotBeNull();
+        HeatmapResponse!.Data.Should().NotBeNull();
+        HeatmapResponse.Data!.Points.Should().HaveCount(expectedCount);
     }
 
     [Then("cada punto tiene coordenadas X, Y e intensidad")]
     public void ThenCadaPuntoTieneCoordenadasXYEIntensidad()
     {
-        _heatmapResponse.Should().NotBeNull();
-        _heatmapResponse!.Data.Should().NotBeNull();
+        HeatmapResponse.Should().NotBeNull();
+        HeatmapResponse!.Data.Should().NotBeNull();
 
-        foreach (var point in _heatmapResponse.Data!.Points)
+        foreach (var point in HeatmapResponse.Data!.Points)
         {
             point.X.Should().BeGreaterThanOrEqualTo(0);
             point.Y.Should().BeGreaterThanOrEqualTo(0);
@@ -262,65 +398,65 @@ public class AnalysisSteps : IntegrationTestBase
     [Then("las dimensiones de la cancha son \"(.*)\"")]
     public void ThenLasDimensionesDeLaCanchaSon(string expectedDimensions)
     {
-        _heatmapResponse.Should().NotBeNull();
-        _heatmapResponse!.Data.Should().NotBeNull();
-        _heatmapResponse.Data!.CourtDimensions.Should().Be(expectedDimensions);
+        HeatmapResponse.Should().NotBeNull();
+        HeatmapResponse!.Data.Should().NotBeNull();
+        HeatmapResponse.Data!.CourtDimensions.Should().Be(expectedDimensions);
     }
 
     [Then("el dashboard muestra (\\d+) videos totales")]
     public void ThenElDashboardMuestraVideosTotales(int expectedCount)
     {
-        _dashboardResponse.Should().NotBeNull();
-        _dashboardResponse!.Data.Should().NotBeNull();
-        _dashboardResponse.Data!.TotalVideos.Should().Be(expectedCount);
+        DashboardResponse.Should().NotBeNull();
+        DashboardResponse!.Data.Should().NotBeNull();
+        DashboardResponse.Data!.TotalVideos.Should().Be(expectedCount);
     }
 
     [Then("el dashboard muestra (\\d+) análisis totales")]
     public void ThenElDashboardMuestraAnalisisTotales(int expectedCount)
     {
-        _dashboardResponse.Should().NotBeNull();
-        _dashboardResponse!.Data.Should().NotBeNull();
-        _dashboardResponse.Data!.TotalAnalyses.Should().Be(expectedCount);
+        DashboardResponse.Should().NotBeNull();
+        DashboardResponse!.Data.Should().NotBeNull();
+        DashboardResponse.Data!.TotalAnalyses.Should().Be(expectedCount);
     }
 
     [Then("el dashboard muestra (\\d+) análisis completados")]
     public void ThenElDashboardMuestraAnalisisCompletados(int expectedCount)
     {
-        _dashboardResponse.Should().NotBeNull();
-        _dashboardResponse!.Data.Should().NotBeNull();
-        _dashboardResponse.Data!.CompletedAnalyses.Should().Be(expectedCount);
+        DashboardResponse.Should().NotBeNull();
+        DashboardResponse!.Data.Should().NotBeNull();
+        DashboardResponse.Data!.CompletedAnalyses.Should().Be(expectedCount);
     }
 
     [Then("el dashboard muestra (\\d+) análisis fallido")]
     public void ThenElDashboardMuestraAnalisisFallido(int expectedCount)
     {
-        _dashboardResponse.Should().NotBeNull();
-        _dashboardResponse!.Data.Should().NotBeNull();
-        _dashboardResponse.Data!.FailedAnalyses.Should().Be(expectedCount);
+        DashboardResponse.Should().NotBeNull();
+        DashboardResponse!.Data.Should().NotBeNull();
+        DashboardResponse.Data!.FailedAnalyses.Should().Be(expectedCount);
     }
 
     [Then("la tasa de éxito es (\\d+)%")]
     public void ThenLaTasaDeExitoEs(int expectedRate)
     {
-        _dashboardResponse.Should().NotBeNull();
-        _dashboardResponse!.Data.Should().NotBeNull();
-        _dashboardResponse.Data!.SuccessRatePercent.Should().BeApproximately(expectedRate, 0.01);
+        DashboardResponse.Should().NotBeNull();
+        DashboardResponse!.Data.Should().NotBeNull();
+        DashboardResponse.Data!.SuccessRatePercent.Should().BeApproximately(expectedRate, 0.01);
     }
 
     [Then("el dashboard muestra los (\\d+) videos más recientes")]
     public void ThenElDashboardMuestraLosVideosMasRecientes(int expectedCount)
     {
-        _dashboardResponse.Should().NotBeNull();
-        _dashboardResponse!.Data.Should().NotBeNull();
-        _dashboardResponse.Data!.RecentVideos.Should().HaveCount(expectedCount);
+        DashboardResponse.Should().NotBeNull();
+        DashboardResponse!.Data.Should().NotBeNull();
+        DashboardResponse.Data!.RecentVideos.Should().HaveCount(expectedCount);
     }
 
     [Then("los videos están ordenados por fecha descendente")]
     public void ThenLosVideosEstanOrdenadosPorFechaDescendente()
     {
-        _dashboardResponse.Should().NotBeNull();
-        _dashboardResponse!.Data.Should().NotBeNull();
-        var videos = _dashboardResponse.Data!.RecentVideos;
+        DashboardResponse.Should().NotBeNull();
+        DashboardResponse!.Data.Should().NotBeNull();
+        var videos = DashboardResponse.Data!.RecentVideos;
 
         for (int i = 0; i < videos.Count - 1; i++)
         {
@@ -331,17 +467,17 @@ public class AnalysisSteps : IntegrationTestBase
     [Then("el dashboard muestra los (\\d+) análisis más recientes")]
     public void ThenElDashboardMuestraLosAnalisisMasRecientes(int expectedCount)
     {
-        _dashboardResponse.Should().NotBeNull();
-        _dashboardResponse!.Data.Should().NotBeNull();
-        _dashboardResponse.Data!.RecentAnalyses.Should().HaveCountLessThanOrEqualTo(expectedCount);
+        DashboardResponse.Should().NotBeNull();
+        DashboardResponse!.Data.Should().NotBeNull();
+        DashboardResponse.Data!.RecentAnalyses.Should().HaveCountLessThanOrEqualTo(expectedCount);
     }
 
     [Then("los análisis están ordenados por fecha de inicio descendente")]
     public void ThenLosAnalisisEstanOrdenadosPorFechaDeInicioDescendente()
     {
-        _dashboardResponse.Should().NotBeNull();
-        _dashboardResponse!.Data.Should().NotBeNull();
-        var analyses = _dashboardResponse.Data!.RecentAnalyses;
+        DashboardResponse.Should().NotBeNull();
+        DashboardResponse!.Data.Should().NotBeNull();
+        var analyses = DashboardResponse.Data!.RecentAnalyses;
 
         for (int i = 0; i < analyses.Count - 1; i++)
         {
@@ -352,9 +488,9 @@ public class AnalysisSteps : IntegrationTestBase
     [Then("la respuesta incluye la ruta al archivo PDF")]
     public void ThenLaRespuestaIncluyeLaRutaAlArchivoPDF()
     {
-        _reportResponse.Should().NotBeNull();
-        _reportResponse!.Data.Should().NotBeNull();
-        _reportResponse.Data.Should().Contain(".pdf");
+        ReportResponse.Should().NotBeNull();
+        ReportResponse!.Data.Should().NotBeNull();
+        ReportResponse.Data.Should().Contain(".pdf");
     }
 
     private async Task<int> CreateTestAnalysisAsync(AnalysisStatus status)

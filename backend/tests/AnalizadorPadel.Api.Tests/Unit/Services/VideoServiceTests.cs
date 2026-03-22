@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace AnalizadorPadel.Api.Tests.Unit.Services;
 
@@ -15,16 +16,20 @@ public class VideoServiceTests : TestBase
     private readonly Mock<IWebHostEnvironment> _envMock;
     private readonly Mock<ILogger<VideoService>> _loggerMock;
     private readonly DbContextOptions<PadelDbContext> _dbOptions;
+    private readonly InMemoryDatabaseRoot _databaseRoot;
+    private readonly string _databaseName;
 
     public VideoServiceTests()
     {
         _envMock = new Mock<IWebHostEnvironment>();
         _envMock.Setup(e => e.ContentRootPath).Returns(Path.GetTempPath());
         _loggerMock = new Mock<ILogger<VideoService>>();
+        _databaseRoot = new InMemoryDatabaseRoot();
+        _databaseName = $"TestDb_{Guid.NewGuid()}";
 
         // Use unique database name for each test to ensure isolation
         _dbOptions = new DbContextOptionsBuilder<PadelDbContext>()
-            .UseInMemoryDatabase($"TestDb_{Guid.NewGuid()}")
+            .UseInMemoryDatabase(_databaseName, _databaseRoot)
             .Options;
     }
 
@@ -35,10 +40,15 @@ public class VideoServiceTests : TestBase
 
         var factory = new Mock<IDbContextFactory<PadelDbContext>>();
         factory.Setup(f => f.CreateDbContextAsync(It.IsAny<CancellationToken>()))
-               .ReturnsAsync(dbContext);
+               .ReturnsAsync(() => new PadelDbContext(_dbOptions));
 
         var service = new VideoService(factory.Object, _envMock.Object, _loggerMock.Object);
         return (service, dbContext);
+    }
+
+    private PadelDbContext CreateAssertionDbContext()
+    {
+        return new PadelDbContext(_dbOptions);
     }
 
     #region CreateVideoAsync Tests
@@ -65,7 +75,8 @@ public class VideoServiceTests : TestBase
         result.Id.Should().BeGreaterThan(0);
 
         // Verify database state
-        var entity = await dbContext.Videos.FindAsync(result.Id);
+        await using var assertionDbContext = CreateAssertionDbContext();
+        var entity = await assertionDbContext.Videos.FindAsync(result.Id);
         entity.Should().NotBeNull();
         entity!.Name.Should().Be(videoName);
         entity.FileSizeBytes.Should().Be(fileSize);
@@ -246,7 +257,8 @@ public class VideoServiceTests : TestBase
 
         // Assert
         result.Should().BeTrue();
-        (await dbContext.Videos.FindAsync(video.Id)).Should().BeNull();
+        await using var assertionDbContext = CreateAssertionDbContext();
+        (await assertionDbContext.Videos.FindAsync(video.Id)).Should().BeNull();
         File.Exists(tempFile).Should().BeFalse();
     }
 
@@ -296,7 +308,8 @@ public class VideoServiceTests : TestBase
         result!.Status.Should().Be(newStatus);
         result.AnalysisId.Should().Be(123);
 
-        var entity = await dbContext.Videos.FindAsync(video.Id);
+        await using var assertionDbContext = CreateAssertionDbContext();
+        var entity = await assertionDbContext.Videos.FindAsync(video.Id);
         entity!.Status.Should().Be(newStatus.ToString());
         entity.AnalysisId.Should().Be(123);
     }

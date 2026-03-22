@@ -252,7 +252,8 @@ public class VideoEndpointsTests : IntegrationTestBase
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.PartialContent);
-        response.Headers.Should().ContainKey("Content-Range");
+        response.Content.Headers.ContentRange.Should().NotBeNull();
+        response.Content.Headers.ContentRange!.ToString().Should().Be("bytes 0-1023/10240");
         response.Content.Headers.ContentLength.Should().Be(1024);
     }
 

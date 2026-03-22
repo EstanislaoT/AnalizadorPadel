@@ -52,6 +52,7 @@ public abstract class IntegrationTestBase : TestBase, IClassFixture<CustomWebApp
     protected IntegrationTestBase(CustomWebApplicationFactory factory)
     {
         Factory = factory;
+        Factory.ResetStateAsync().GetAwaiter().GetResult();
         Client = factory.CreateClient(new WebApplicationFactoryClientOptions
         {
             AllowAutoRedirect = false

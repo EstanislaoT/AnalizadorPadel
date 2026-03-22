@@ -1,6 +1,8 @@
 using AnalizadorPadel.Api.Data;
 using AnalizadorPadel.Api.Models.DTOs;
 using AnalizadorPadel.Api.Services;
+using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 using Serilog;
@@ -34,6 +36,12 @@ try
         options.UseSqlite(connectionString));
     builder.Services.AddDbContextFactory<PadelDbContext>(options =>
         options.UseSqlite(connectionString), ServiceLifetime.Scoped);
+
+    builder.Services.Configure<FormOptions>(options =>
+    {
+        // Keep framework limits above our business limit so the handler can return consistent API errors.
+        options.MultipartBodyLengthLimit = 600 * 1024 * 1024;
+    });
 
     // Configure CORS
     builder.Services.AddCors(options =>
@@ -99,8 +107,20 @@ try
     // ============================================
 
     // POST /api/videos - Subir nuevo video
-    app.MapPost("/api/videos", async (IFormFile file, VideoService videoService) =>
+    app.MapPost("/api/videos", async (HttpRequest request, [FromServices] IVideoService videoService) =>
     {
+        IFormCollection form;
+        try
+        {
+            form = await request.ReadFormAsync();
+        }
+        catch (Exception ex) when (ex is InvalidDataException or BadHttpRequestException)
+        {
+            return Results.BadRequest(new ApiResponse<object>(false, "No se proporcionó ningún video"));
+        }
+
+        var file = form.Files["file"];
+
         if (file == null || file.Length == 0)
         {
             return Results.BadRequest(new ApiResponse<object>(false, "No se proporcionó ningún video"));
@@ -137,7 +157,7 @@ try
     .DisableAntiforgery();
 
     // GET /api/videos - Listar videos
-    app.MapGet("/api/videos", async (VideoService videoService) =>
+    app.MapGet("/api/videos", async ([FromServices] IVideoService videoService) =>
     {
         var videos = await videoService.GetAllAsync();
         return Results.Ok(new ApiResponse<List<VideoDto>>(true, $"{videos.Count} videos encontrados", videos));
@@ -147,7 +167,7 @@ try
     .WithDescription("Retorna una lista de todos los videos subidos, ordenados por fecha descendente");
 
     // GET /api/videos/{id} - Obtener video por ID
-    app.MapGet("/api/videos/{id:int}", async (int id, VideoService videoService) =>
+    app.MapGet("/api/videos/{id:int}", async (int id, [FromServices] IVideoService videoService) =>
     {
         var video = await videoService.GetByIdAsync(id);
         if (video == null)
@@ -161,7 +181,7 @@ try
     .WithDescription("Retorna los detalles de un video específico");
 
     // DELETE /api/videos/{id} - Eliminar video
-    app.MapDelete("/api/videos/{id:int}", async (int id, VideoService videoService) =>
+    app.MapDelete("/api/videos/{id:int}", async (int id, [FromServices] IVideoService videoService) =>
     {
         var deleted = await videoService.DeleteAsync(id);
         if (!deleted)
@@ -175,7 +195,7 @@ try
     .WithDescription("Elimina un video y sus archivos asociados");
 
     // GET /api/videos/{id}/stream - Stream video with Range support
-    app.MapGet("/api/videos/{id:int}/stream", async (int id, VideoService videoService, HttpContext context) =>
+    app.MapGet("/api/videos/{id:int}/stream", async (int id, [FromServices] IVideoService videoService, HttpContext context) =>
     {
         var video = await videoService.GetByIdAsync(id);
         if (video == null)
@@ -315,7 +335,7 @@ try
     // ============================================
 
     // POST /api/videos/{id}/analyse - Iniciar análisis
-    app.MapPost("/api/videos/{id:int}/analyse", async (int id, AnalysisService analysisService, VideoService videoService) =>
+    app.MapPost("/api/videos/{id:int}/analyse", async (int id, AnalysisService analysisService, [FromServices] IVideoService videoService) =>
     {
         var video = await videoService.GetByIdAsync(id);
         if (video == null)
@@ -406,7 +426,7 @@ try
     // ============================================
 
     // GET /api/dashboard/stats - Estadísticas del dashboard
-    app.MapGet("/api/dashboard/stats", async (VideoService videoService) =>
+    app.MapGet("/api/dashboard/stats", async ([FromServices] IVideoService videoService) =>
     {
         var stats = await videoService.GetDashboardStatsAsync();
         return Results.Ok(new ApiResponse<DashboardStats>(true, "Estadísticas del dashboard", stats));

@@ -274,9 +274,9 @@ public class AnalysisEndpointsTests : IntegrationTestBase
         var result = await response.Content.ReadFromJsonAsync<ApiResponse<DashboardStats>>();
         result.Should().NotBeNull();
         result!.Success.Should().BeTrue();
-        result.Data!.TotalVideos.Should().Be(2);
+        result.Data!.TotalVideos.Should().Be(3);
         result.Data.TotalAnalyses.Should().Be(1);
-        result.Data.RecentVideos.Should().HaveCount(2);
+        result.Data.RecentVideos.Should().HaveCount(3);
     }
 
     #endregion

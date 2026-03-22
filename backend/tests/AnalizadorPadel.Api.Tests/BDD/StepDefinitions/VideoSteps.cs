@@ -10,18 +10,38 @@ namespace AnalizadorPadel.Api.Tests.BDD.StepDefinitions;
 [Binding]
 public class VideoSteps : IntegrationTestBase
 {
-    private HttpResponseMessage? _response;
-    private ApiResponse<VideoDto>? _videoResponse;
-    private ApiResponse<List<VideoDto>>? _videosListResponse;
+    private const string ResponseKey = "HttpResponse";
+    private const string VideoResponseKey = "VideoResponse";
+    private const string VideosListResponseKey = "VideosListResponse";
 
-    public VideoSteps(CustomWebApplicationFactory factory) : base(factory)
+    private readonly ScenarioContext _scenarioContext;
+
+    private HttpResponseMessage? Response
     {
+        get => _scenarioContext.TryGetValue<HttpResponseMessage>(ResponseKey, out var response) ? response : null;
+        set => _scenarioContext[ResponseKey] = value!;
+    }
+
+    private ApiResponse<VideoDto>? VideoResponse
+    {
+        get => _scenarioContext.TryGetValue<ApiResponse<VideoDto>>(VideoResponseKey, out var response) ? response : null;
+        set => _scenarioContext[VideoResponseKey] = value!;
+    }
+
+    private ApiResponse<List<VideoDto>>? VideosListResponse
+    {
+        get => _scenarioContext.TryGetValue<ApiResponse<List<VideoDto>>>(VideosListResponseKey, out var response) ? response : null;
+        set => _scenarioContext[VideosListResponseKey] = value!;
+    }
+
+    public VideoSteps(CustomWebApplicationFactory factory, ScenarioContext scenarioContext) : base(factory)
+    {
+        _scenarioContext = scenarioContext;
     }
 
     [Given("la API está funcionando correctamente")]
     public void GivenLaAPIEstaFuncionandoCorrectamente()
     {
-        // Verify API is running via health check
         var response = Client.GetAsync("/api/health").Result;
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
@@ -29,19 +49,21 @@ public class VideoSteps : IntegrationTestBase
     [Given("el sistema de almacenamiento está disponible")]
     public void GivenElSistemaDeAlmacenamientoEstaDisponible()
     {
-        // Storage is always available in test environment
     }
 
     [Given("el usuario tiene un video en formato (.*)")]
     public void GivenElUsuarioTieneUnVideoEnFormato(string formato)
     {
-        // Preparation step - no action needed
     }
 
     [Given("el usuario tiene un video de (\\d+) MB")]
     public void GivenElUsuarioTieneUnVideoDeMB(int tamaño)
     {
-        // Preparation step - video size will be handled during upload
+    }
+
+    [Given("el usuario intenta subir un video")]
+    public void GivenElUsuarioIntentaSubirUnVideo()
+    {
     }
 
     [Given("el usuario ha subido previamente (\\d+) videos")]
@@ -56,7 +78,6 @@ public class VideoSteps : IntegrationTestBase
     [Given("existe un video con ID (\\d+) en el sistema")]
     public async Task GivenExisteUnVideoConIDEnElSistema(int id)
     {
-        // Create a video that will get the specified ID
         var response = await CreateTestVideoAsync("test_video.mp4");
         var video = await response.Content.ReadFromJsonAsync<ApiResponse<VideoDto>>();
         video.Should().NotBeNull();
@@ -67,103 +88,108 @@ public class VideoSteps : IntegrationTestBase
     [Given("no existe un video con ID (\\d+) en el sistema")]
     public void GivenNoExisteUnVideoConIDEnElSistema(int id)
     {
-        // Ensure video doesn't exist - no action needed as we start with empty DB
     }
 
     [When("el usuario sube el video \"(.*)\"")]
     public async Task WhenElUsuarioSubeElVideo(string fileName)
     {
-        _response = await CreateTestVideoAsync(fileName);
-        if (_response.IsSuccessStatusCode)
+        Response = await CreateTestVideoAsync(fileName);
+        if (Response.IsSuccessStatusCode)
         {
-            _videoResponse = await _response.Content.ReadFromJsonAsync<ApiResponse<VideoDto>>();
+            VideoResponse = await Response.Content.ReadFromJsonAsync<ApiResponse<VideoDto>>();
         }
+    }
+
+    [When("el usuario sube un nuevo video \"(.*)\"")]
+    public Task WhenElUsuarioSubeUnNuevoVideo(string fileName)
+    {
+        return WhenElUsuarioSubeElVideo(fileName);
     }
 
     [When("el usuario intenta subir el video grande")]
     public async Task WhenElUsuarioIntentaSubirElVideoGrande()
     {
         var content = new MultipartFormDataContent();
-        var largeStream = new MemoryStream(new byte[501 * 1024 * 1024]); // 501MB
+        var largeStream = new MemoryStream(new byte[501 * 1024 * 1024]);
         var fileContent = new StreamContent(largeStream);
         fileContent.Headers.ContentType = new MediaTypeHeaderValue("video/mp4");
         content.Add(fileContent, "file", "large_video.mp4");
 
-        _response = await Client.PostAsync("/api/videos", content);
+        Response = await Client.PostAsync("/api/videos", content);
     }
 
     [When("el usuario envía la petición sin archivo adjunto")]
     public async Task WhenElUsuarioEnviaLaPeticionSinArchivoAdjunto()
     {
         var content = new MultipartFormDataContent();
-        _response = await Client.PostAsync("/api/videos", content);
+        Response = await Client.PostAsync("/api/videos", content);
     }
 
     [When("el usuario solicita la lista de videos")]
     public async Task WhenElUsuarioSolicitaLaListaDeVideos()
     {
-        _response = await Client.GetAsync("/api/videos");
-        if (_response.IsSuccessStatusCode)
+        Response = await Client.GetAsync("/api/videos");
+        if (Response.IsSuccessStatusCode)
         {
-            _videosListResponse = await _response.Content.ReadFromJsonAsync<ApiResponse<List<VideoDto>>>();
+            VideosListResponse = await Response.Content.ReadFromJsonAsync<ApiResponse<List<VideoDto>>>();
         }
     }
 
     [When("el usuario elimina el video con ID (\\d+)")]
     public async Task WhenElUsuarioEliminaElVideoConID(int id)
     {
-        _response = await Client.DeleteAsync($"/api/videos/{id}");
+        Response = await Client.DeleteAsync($"/api/videos/{id}");
     }
 
     [When("el usuario intenta eliminar el video con ID (\\d+)")]
     public async Task WhenElUsuarioIntentaEliminarElVideoConID(int id)
     {
-        _response = await Client.DeleteAsync($"/api/videos/{id}");
+        Response = await Client.DeleteAsync($"/api/videos/{id}");
     }
 
     [Then("el sistema responde con código (\\d+) (.*)")]
     public void ThenElSistemaRespondeConCodigo(int expectedCode, string description)
     {
-        _response.Should().NotBeNull();
-        _response!.StatusCode.Should().Be((HttpStatusCode)expectedCode);
+        Response.Should().NotBeNull();
+        Response!.StatusCode.Should().Be((HttpStatusCode)expectedCode);
     }
 
     [Then("el video se almacena en el sistema")]
     public void ThenElVideoSeAlmacenaEnElSistema()
     {
-        _videoResponse.Should().NotBeNull();
-        _videoResponse!.Data.Should().NotBeNull();
-        _videoResponse.Data!.Id.Should().BeGreaterThan(0);
+        VideoResponse.Should().NotBeNull();
+        VideoResponse!.Data.Should().NotBeNull();
+        VideoResponse.Data!.Id.Should().BeGreaterThan(0);
     }
 
     [Then("el video se almacena correctamente")]
     public void ThenElVideoSeAlmacenaCorrectamente()
     {
-        _videoResponse.Should().NotBeNull();
-        _videoResponse!.Success.Should().BeTrue();
+        VideoResponse.Should().NotBeNull();
+        VideoResponse!.Success.Should().BeTrue();
     }
 
     [Then("el sistema devuelve los detalles del video incluyendo un ID único")]
     public void ThenElSistemaDevuelveLosDetallesDelVideoIncluyendoUnIDUnico()
     {
-        _videoResponse.Should().NotBeNull();
-        _videoResponse!.Data.Should().NotBeNull();
-        _videoResponse.Data!.Id.Should().BeGreaterThan(0);
+        VideoResponse.Should().NotBeNull();
+        VideoResponse!.Data.Should().NotBeNull();
+        VideoResponse.Data!.Id.Should().BeGreaterThan(0);
     }
 
     [Then("el estado del video es \"(.*)\"")]
     public void ThenElEstadoDelVideoEs(string expectedStatus)
     {
-        _videoResponse.Should().NotBeNull();
-        _videoResponse!.Data.Should().NotBeNull();
-        _videoResponse.Data!.Status.ToString().Should().Be(expectedStatus);
+        VideoResponse.Should().NotBeNull();
+        VideoResponse!.Data.Should().NotBeNull();
+        VideoResponse.Data!.Status.ToString().Should().Be(expectedStatus);
     }
 
     [Then("el mensaje de error indica \"(.*)\"")]
     public async Task ThenElMensajeDeErrorIndica(string expectedMessage)
     {
-        _response.Should().NotBeNull();
-        var content = await _response!.Content.ReadFromJsonAsync<ApiResponse<object>>();
+        Response.Should().NotBeNull();
+        var content = await Response!.Content.ReadFromJsonAsync<ApiResponse<object>>();
         content.Should().NotBeNull();
         content!.Message.Should().Contain(expectedMessage);
     }
@@ -171,25 +197,24 @@ public class VideoSteps : IntegrationTestBase
     [Then("el video no se almacena en el sistema")]
     public void ThenElVideoNoSeAlmacenaEnElSistema()
     {
-        // The response should indicate failure
-        _response.Should().NotBeNull();
-        _response!.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        Response.Should().NotBeNull();
+        Response!.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
     [Then("la lista contiene (\\d+) videos")]
     public void ThenLaListaContieneVideos(int expectedCount)
     {
-        _videosListResponse.Should().NotBeNull();
-        _videosListResponse!.Data.Should().NotBeNull();
-        _videosListResponse.Data!.Count.Should().Be(expectedCount);
+        VideosListResponse.Should().NotBeNull();
+        VideosListResponse!.Data.Should().NotBeNull();
+        VideosListResponse.Data!.Count.Should().Be(expectedCount);
     }
 
     [Then("el video más reciente aparece primero en la lista")]
     public void ThenElVideoMasRecienteAparecePrimeroEnLaLista()
     {
-        _videosListResponse.Should().NotBeNull();
-        _videosListResponse!.Data.Should().NotBeNull();
-        var videos = _videosListResponse.Data!;
+        VideosListResponse.Should().NotBeNull();
+        VideosListResponse!.Data.Should().NotBeNull();
+        var videos = VideosListResponse.Data!;
 
         if (videos.Count >= 2)
         {
@@ -200,7 +225,8 @@ public class VideoSteps : IntegrationTestBase
     [Then("el mensaje confirma \"(.*)\"")]
     public async Task ThenElMensajeConfirma(string expectedMessage)
     {
-        var content = await _response!.Content.ReadFromJsonAsync<ApiResponse<object>>();
+        Response.Should().NotBeNull();
+        var content = await Response!.Content.ReadFromJsonAsync<ApiResponse<object>>();
         content.Should().NotBeNull();
         content!.Message.Should().Contain(expectedMessage);
     }

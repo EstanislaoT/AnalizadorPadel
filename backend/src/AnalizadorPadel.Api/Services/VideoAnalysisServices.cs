@@ -435,7 +435,7 @@ public class AnalysisService
 
         // MVP: Return placeholder report path
         // TODO: Implement actual PDF report generation
-        return $"/api/analyses/{id}/report-placeholder";
+        return $"/api/analyses/{id}/report-placeholder.pdf";
     }
 
     private static AnalysisDto MapToDto(AnalysisEntity entity)
