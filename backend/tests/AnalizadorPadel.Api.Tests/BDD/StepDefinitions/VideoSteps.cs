@@ -32,12 +32,6 @@ public class VideoSteps : IntegrationTestBase
         // Storage is always available in test environment
     }
 
-    [Given("el usuario tiene un video en formato MP4")]
-    public void GivenElUsuarioTieneUnVideoEnFormatoMP4()
-    {
-        // Preparation step - no action needed
-    }
-
     [Given("el usuario tiene un video en formato (.*)")]
     public void GivenElUsuarioTieneUnVideoEnFormato(string formato)
     {
@@ -63,7 +57,10 @@ public class VideoSteps : IntegrationTestBase
     public async Task GivenExisteUnVideoConIDEnElSistema(int id)
     {
         // Create a video that will get the specified ID
-        var video = await CreateTestVideoAsync("test_video.mp4");
+        var response = await CreateTestVideoAsync("test_video.mp4");
+        var video = await response.Content.ReadFromJsonAsync<ApiResponse<VideoDto>>();
+        video.Should().NotBeNull();
+        video!.Data.Should().NotBeNull();
         video.Data!.Id.Should().BeGreaterThan(0);
     }
 

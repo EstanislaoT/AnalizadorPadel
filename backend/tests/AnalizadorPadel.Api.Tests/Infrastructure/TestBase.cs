@@ -1,3 +1,6 @@
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc.Testing;
+
 namespace AnalizadorPadel.Api.Tests.Infrastructure;
 
 /// <summary>

@@ -5,6 +5,7 @@ using AnalizadorPadel.Api.Models.DTOs;
 using AnalizadorPadel.Api.Models.Entities;
 using AnalizadorPadel.Api.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using TechTalk.SpecFlow;
 
 namespace AnalizadorPadel.Api.Tests.BDD.StepDefinitions;
@@ -209,7 +210,7 @@ public class AnalysisSteps : IntegrationTestBase
     {
         _statsResponse.Should().NotBeNull();
         _statsResponse!.Data.Should().NotBeNull();
-        _statsResponse.Data!.DetectionRatePercent.Should().BeGreaterOrEqualTo(0);
+        _statsResponse.Data!.DetectionRatePercent.Should().BeGreaterThanOrEqualTo(0);
     }
 
     [Then("las estadísticas incluyen tiempo de procesamiento")]
@@ -217,7 +218,7 @@ public class AnalysisSteps : IntegrationTestBase
     {
         _statsResponse.Should().NotBeNull();
         _statsResponse!.Data.Should().NotBeNull();
-        _statsResponse.Data!.ProcessingTimeSeconds.Should().BeGreaterOrEqualTo(0);
+        _statsResponse.Data!.ProcessingTimeSeconds.Should().BeGreaterThanOrEqualTo(0);
     }
 
     [Then("las estadísticas incluyen modelo utilizado")]
@@ -252,9 +253,9 @@ public class AnalysisSteps : IntegrationTestBase
 
         foreach (var point in _heatmapResponse.Data!.Points)
         {
-            point.X.Should().BeGreaterOrEqualTo(0);
-            point.Y.Should().BeGreaterOrEqualTo(0);
-            point.Intensity.Should().BeGreaterOrEqualTo(1);
+            point.X.Should().BeGreaterThanOrEqualTo(0);
+            point.Y.Should().BeGreaterThanOrEqualTo(0);
+            point.Intensity.Should().BeGreaterThanOrEqualTo(1);
         }
     }
 
@@ -332,7 +333,7 @@ public class AnalysisSteps : IntegrationTestBase
     {
         _dashboardResponse.Should().NotBeNull();
         _dashboardResponse!.Data.Should().NotBeNull();
-        _dashboardResponse.Data!.RecentAnalyses.Should().HaveCountLessOrEqualTo(expectedCount);
+        _dashboardResponse.Data!.RecentAnalyses.Should().HaveCountLessThanOrEqualTo(expectedCount);
     }
 
     [Then("los análisis están ordenados por fecha de inicio descendente")]

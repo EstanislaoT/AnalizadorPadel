@@ -6,6 +6,7 @@ using AnalizadorPadel.Api.Models.DTOs;
 using AnalizadorPadel.Api.Models.Entities;
 using AnalizadorPadel.Api.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace AnalizadorPadel.Api.Tests.Integration;
 

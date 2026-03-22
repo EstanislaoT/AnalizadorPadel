@@ -2,6 +2,7 @@ using AnalizadorPadel.Api.Data;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -17,30 +18,17 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
     {
         builder.UseEnvironment("Testing");
 
+        builder.ConfigureAppConfiguration((context, config) =>
+        {
+            // Override connection string for testing to use in-memory SQLite
+            config.AddInMemoryCollection(new[]
+            {
+                new KeyValuePair<string, string?>("ConnectionStrings:DefaultConnection", ":memory:")
+            });
+        });
+
         builder.ConfigureServices(services =>
         {
-            // Remove the existing DbContext registration
-            var descriptor = services.SingleOrDefault(
-                d => d.ServiceType == typeof(DbContextOptions<PadelDbContext>));
-            if (descriptor != null)
-            {
-                services.Remove(descriptor);
-            }
-
-            var factoryDescriptor = services.SingleOrDefault(
-                d => d.ServiceType == typeof(IDbContextFactory<PadelDbContext>));
-            if (factoryDescriptor != null)
-            {
-                services.Remove(factoryDescriptor);
-            }
-
-            // Add in-memory database for testing
-            services.AddDbContext<PadelDbContext>(options =>
-                options.UseInMemoryDatabase($"TestDb_{Guid.NewGuid()}"));
-
-            services.AddDbContextFactory<PadelDbContext>(options =>
-                options.UseInMemoryDatabase($"TestDb_{Guid.NewGuid()}"), ServiceLifetime.Scoped);
-
             // Reduce logging verbosity for tests
             services.AddLogging(logging =>
             {

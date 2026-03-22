@@ -1,15 +1,17 @@
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using AnalizadorPadel.Api.Data;
 
 namespace AnalizadorPadel.Tests.Integration;
 
 public class CustomWebApplicationFactory : WebApplicationFactory<Program>
 {
-    protected override IHost CreateHost(IHostBuilder builder)
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        builder.UseEnvironment("Testing");
+        
         builder.ConfigureServices(services =>
         {
             // Remove existing DbContext registrations
@@ -23,18 +25,16 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
                 services.Remove(descriptor);
             }
 
-            // Add in-memory database for testing
+            // Add in-memory database for testing with unique name
             services.AddDbContext<PadelDbContext>(options =>
             {
-                options.UseInMemoryDatabase("TestDb");
+                options.UseInMemoryDatabase($"TestDb_{Guid.NewGuid():N}");
             });
 
             services.AddDbContextFactory<PadelDbContext>(options =>
             {
-                options.UseInMemoryDatabase("TestDb");
+                options.UseInMemoryDatabase($"TestDb_{Guid.NewGuid():N}");
             }, ServiceLifetime.Scoped);
         });
-
-        return base.CreateHost(builder);
     }
 }
