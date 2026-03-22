@@ -426,3 +426,6 @@ finally
 {
     Log.CloseAndFlush();
 }
+
+// Make Program public for integration tests
+public partial class Program { }

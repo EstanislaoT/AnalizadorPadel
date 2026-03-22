@@ -4,27 +4,29 @@
 
 ### Backend (.NET)
 - **Framework**: ASP.NET Core 10 (LTS)
-- **Arquitectura**: Web API con controladores REST (modular)
-- **Base de Datos**: SQLite (MVP) / PostgreSQL (V2.0+)
-- **ORM**: Entity Framework Core
+- **Arquitectura**: Web API con Minimal APIs (REST)
+- **Base de Datos**: SQLite con Entity Framework Core
+- **ORM**: Entity Framework Core 10
 - **Autenticación**: No requerida en MVP (Post-MVP: JWT Tokens)
+- **Documentación API**: Scalar.AspNetCore (OpenAPI 3.0)
+- **Logging**: Serilog (Console + File)
 - **Procesamiento de Video**:
   - FFmpeg (extracción de frames y manipulación)
   - YOLO v8 vía Python subprocess (detección de jugadores)
-  - OpenCV HSV + HoughCircles (detección de pelota - MVP)
-  - Emgu CV (cálculo de posiciones y heatmaps en .NET)
-  - Kalman Filter (suavizado de trayectorias)
+  - OpenCV (procesamiento de imágenes)
   - Procesamiento síncrono (MVP)
 
 ### Frontend (React + TypeScript)
 - **Framework**: React 18 + TypeScript
 - **Build Tool**: Vite
-- **State Management**: Zustand o Redux Toolkit
-- **UI Components**: Material-UI (MUI)
-- **Video Player**: Video.js
+- **State Management**: Zustand
+- **UI Components**: Material-UI (MUI) v5
+- **Video Player**: React Player
 - **Charts/Visualization**: Chart.js + D3.js
 - **HTTP Client**: Axios
-- **Routing**: React Router
+- **Routing**: React Router v6
+- **Testing**: Vitest + React Testing Library + MSW (Mock Service Worker)
+- **API Client**: Generado con openapi-typescript
 
 ### Infraestructura MVP
 - **Contenedores**: Docker + Docker Compose
@@ -32,8 +34,8 @@
 - **App Server Backend**: Kestrel (integrado en .NET)
 - **App Server Frontend (dev)**: Vite Dev Server
 - **Base de Datos**: SQLite (archivo local)
-- **Almacenamiento**: Sistema de archivos local (`/uploads`)
-- **Logging**: Serilog
+- **Almacenamiento**: Sistema de archivos local (`/uploads`, `/outputs`)
+- **Logging**: Serilog con rotación diaria
 
 ### Infraestructura Futura (Post-MVP)
 - **Base de Datos**: PostgreSQL (migración desde SQLite)
@@ -42,12 +44,12 @@
 - **Monitoring**: Application Insights
 - **Caché**: Redis
 - **Autenticación**: JWT Tokens
+- **Procesamiento**: Background workers asíncronos
 
 ### API First
-- **Especificación**: OpenAPI 3.0 (Swagger)
-- **Generación de Código**: NSwag (cliente TypeScript)
+- **Especificación**: OpenAPI 3.0
+- **Generación de Código**: openapi-typescript (cliente TypeScript)
 - **Documentación**: Scalar.AspNetCore
-- **Mocking**: Prism (desarrollo frontend independiente)
 
 ---
 
@@ -56,20 +58,16 @@
 ### Workflow API First
 
 ```
-1. Diseñar API en OpenAPI (openapi.yaml)
+1. Diseñar API en OpenAPI (openapi.json)
          ↓
-2. Generar servidor stub (NSwag)
+2. Implementar lógica backend con Minimal APIs
          ↓
-3. Mock server para frontend (Prism)
+3. Generar cliente TypeScript (openapi-typescript)
          ↓
-4. Implementar lógica backend
-         ↓
-5. Generar cliente TypeScript (NSwag)
-         ↓
-6. Frontend consume API tipada
+4. Frontend consume API tipada
 ```
 
-### Endpoints del MVP
+### Endpoints Implementados
 
 | Método | Endpoint | Descripción |
 |--------|----------|-------------|
@@ -77,480 +75,33 @@
 | GET | `/api/videos` | Listar videos |
 | GET | `/api/videos/{id}` | Obtener video por ID |
 | DELETE | `/api/videos/{id}` | Eliminar video |
-| POST | `/api/videos/{id}/analyse` | Iniciar análisis |
-| GET | `/api/analyses/{id}` | Obtener análisis |
-| GET | `/api/analyses/{id}/stats` | Estadísticas del análisis |
-| GET | `/api/analyses/{id}/heatmap` | Datos del heatmap |
-| GET | `/api/analyses/{id}/report` | Descargar PDF |
+| POST | `/api/videos/{id}/analyse` | Iniciar análisis del video |
+| GET | `/api/analyses` | Listar análisis |
+| GET | `/api/analyses/{id}` | Obtener análisis por ID |
+| GET | `/api/dashboard/stats` | Estadísticas del dashboard |
+| GET | `/api/health` | Health check |
 
-### Especificación OpenAPI (openapi.yaml)
-
-```yaml
-openapi: 3.0.3
-info:
-  title: Analizador de Pádel API
-  description: API para análisis de partidos de pádel mediante procesamiento de video
-  version: 1.0.0
-  contact:
-    name: AnalizadorPadel Team
-
-servers:
-  - url: http://localhost:5000/api
-    description: Desarrollo
-  - url: http://localhost/api
-    description: Producción (Docker)
-
-tags:
-  - name: Videos
-    description: Gestión de videos
-  - name: Analyses
-    description: Análisis de partidos
-
-paths:
-  /videos:
-    post:
-      tags: [Videos]
-      summary: Subir nuevo video
-      description: Sube un video de partido para su posterior análisis
-      requestBody:
-        required: true
-        content:
-          multipart/form-data:
-            schema:
-              type: object
-              required: [file]
-              properties:
-                file:
-                  type: string
-                  format: binary
-                  description: Archivo de video (MP4, AVI, MOV)
-      responses:
-        '201':
-          description: Video subido exitosamente
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/VideoResponse'
-        '400':
-          description: Error de validación
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '413':
-          description: Archivo demasiado grande
-    get:
-      tags: [Videos]
-      summary: Listar videos
-      description: Obtiene la lista de videos subidos
-      parameters:
-        - name: page
-          in: query
-          schema:
-            type: integer
-            default: 1
-        - name: limit
-          in: query
-          schema:
-            type: integer
-            default: 10
-        - name: status
-          in: query
-          schema:
-            type: string
-            enum: [uploaded, processing, completed, failed]
-      responses:
-        '200':
-          description: Lista de videos
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/VideoListResponse'
-
-  /videos/{id}:
-    get:
-      tags: [Videos]
-      summary: Obtener video por ID
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      responses:
-        '200':
-          description: Video encontrado
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/VideoResponse'
-        '404':
-          description: Video no encontrado
-    delete:
-      tags: [Videos]
-      summary: Eliminar video
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      responses:
-        '204':
-          description: Video eliminado
-        '404':
-          description: Video no encontrado
-
-  /videos/{id}/analyse:
-    post:
-      tags: [Videos]
-      summary: Iniciar análisis del video
-      description: Procesa el video y genera estadísticas
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      responses:
-        '200':
-          description: Análisis completado
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AnalysisResponse'
-        '202':
-          description: Análisis iniciado (modo asíncrono futuro)
-        '404':
-          description: Video no encontrado
-        '408':
-          description: Timeout en procesamiento
-
-  /analyses/{id}:
-    get:
-      tags: [Analyses]
-      summary: Obtener análisis por ID
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      responses:
-        '200':
-          description: Análisis encontrado
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AnalysisResponse'
-        '404':
-          description: Análisis no encontrado
-
-  /analyses/{id}/stats:
-    get:
-      tags: [Analyses]
-      summary: Obtener estadísticas del análisis
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-        - name: playerIndex
-          in: query
-          description: Índice del jugador (1-4)
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 4
-      responses:
-        '200':
-          description: Estadísticas del análisis
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/StatisticsResponse'
-
-  /analyses/{id}/heatmap:
-    get:
-      tags: [Analyses]
-      summary: Obtener datos del heatmap
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-        - name: playerIndex
-          in: query
-          schema:
-            type: integer
-      responses:
-        '200':
-          description: Datos del heatmap
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HeatmapResponse'
-
-  /analyses/{id}/report:
-    get:
-      tags: [Analyses]
-      summary: Descargar reporte PDF
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      responses:
-        '200':
-          description: Reporte PDF
-          content:
-            application/pdf:
-              schema:
-                type: string
-                format: binary
-        '404':
-          description: Análisis no encontrado
-
-components:
-  schemas:
-    VideoResponse:
-      type: object
-      required: [id, originalFileName, storagePath, fileSize, duration, format, status, uploadedAt]
-      properties:
-        id:
-          type: string
-          format: uuid
-        originalFileName:
-          type: string
-          example: "partido_padel_2026-02-18.mp4"
-        storagePath:
-          type: string
-        fileSize:
-          type: integer
-          description: Tamaño en bytes
-        duration:
-          type: number
-          description: Duración en segundos
-        format:
-          type: string
-          enum: [mp4, avi, mov]
-        status:
-          type: string
-          enum: [uploaded, processing, completed, failed]
-        uploadedAt:
-          type: string
-          format: date-time
-        processedAt:
-          type: string
-          format: date-time
-          nullable: true
-
-    VideoListResponse:
-      type: object
-      properties:
-        data:
-          type: array
-          items:
-            $ref: '#/components/schemas/VideoResponse'
-        pagination:
-          $ref: '#/components/schemas/Pagination'
-
-    AnalysisResponse:
-      type: object
-      required: [id, videoId, totalTime, totalPoints]
-      properties:
-        id:
-          type: string
-          format: uuid
-        videoId:
-          type: string
-          format: uuid
-        totalTime:
-          type: number
-          description: Tiempo total en segundos
-        totalPoints:
-          type: integer
-        playerStats:
-          type: array
-          items:
-            $ref: '#/components/schemas/PlayerStats'
-        createdAt:
-          type: string
-          format: date-time
-
-    PlayerStats:
-      type: object
-      properties:
-        playerIndex:
-          type: integer
-        distanceMeters:
-          type: number
-        avgSpeed:
-          type: number
-        maxSpeed:
-          type: number
-        timeAtNet:
-          type: number
-          description: Porcentaje del tiempo en la red
-        timeAtBack:
-          type: number
-        timeAtSides:
-          type: number
-
-    StatisticsResponse:
-      type: object
-      properties:
-        analysisId:
-          type: string
-          format: uuid
-        playerIndex:
-          type: integer
-        statistics:
-          type: array
-          items:
-            $ref: '#/components/schemas/Statistic'
-
-    Statistic:
-      type: object
-      properties:
-        statType:
-          type: string
-          enum: [distance, speed, position]
-        value:
-          type: number
-        metadata:
-          type: object
-          additionalProperties: true
-
-    HeatmapResponse:
-      type: object
-      properties:
-        analysisId:
-          type: string
-          format: uuid
-        playerIndex:
-          type: integer
-        points:
-          type: array
-          items:
-            $ref: '#/components/schemas/HeatmapPoint'
-
-    HeatmapPoint:
-      type: object
-      properties:
-        x:
-          type: number
-          minimum: 0
-          maximum: 10
-          description: Coordenada X en metros
-        y:
-          type: number
-          minimum: 0
-          maximum: 20
-          description: Coordenada Y en metros
-        intensity:
-          type: number
-          minimum: 0
-          maximum: 1
-
-    Pagination:
-      type: object
-      properties:
-        page:
-          type: integer
-        limit:
-          type: integer
-        total:
-          type: integer
-        totalPages:
-          type: integer
-
-    ErrorResponse:
-      type: object
-      required: [statusCode, errorCode, message, timestamp]
-      properties:
-        statusCode:
-          type: integer
-        errorCode:
-          type: string
-        message:
-          type: string
-        detail:
-          type: string
-        timestamp:
-          type: string
-          format: date-time
-        requestId:
-          type: string
-```
-
-### Configuración de Swashbuckle
+### Configuración de OpenAPI con Scalar
 
 ```csharp
 // Program.cs
-builder.Services.AddSwaggerGen(c =>
-{
-    c.SwaggerDoc("v1", new OpenApiInfo
-    {
-        Title = "Analizador de Pádel API",
-        Version = "v1",
-        Description = "API para análisis de partidos de pádel"
-    });
-    
-    var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
-    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
-    c.IncludeXmlComments(xmlPath);
-});
+builder.Services.AddOpenApi();
 
-app.UseSwagger();
-app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "API v1"));
+var app = builder.Build();
+
+app.MapOpenApi();
+app.MapScalarApiReference();
 ```
 
-### Configuración de NSwag para Cliente TypeScript
+### Generación de Cliente TypeScript
 
 ```json
-// nswag.json
+// frontend/package.json
 {
-  "runtime": "Net100",
-  "documentGenerator": {
-    "aspNetCoreToOpenApi": {
-      "project": "AnalizadorPadel.csproj",
-      "output": "openapi.json"
-    }
-  },
-  "codeGenerators": {
-    "openApiToTypeScriptClient": {
-      "input": "openapi.json",
-      "output": "../frontend/src/services/api/generated/client.ts",
-      "template": "Axios",
-      "promiseType": "async-await",
-      "generateClientInterfaces": true,
-      "typeStyle": "Interface"
-    }
+  "scripts": {
+    "codegen": "openapi-typescript ./src/services/api/openapi.json --output ./src/services/api/generated/types.ts"
   }
 }
-```
-
-### Mock Server con Prism
-
-```bash
-# Instalar Prism
-npm install -g @stoplight/prism-cli
-
-# Iniciar mock server desde openapi.yaml
-prism mock openapi.yaml --port 4010
-
-# Frontend puede usar http://localhost:4010/api durante desarrollo
 ```
 
 ---
@@ -563,14 +114,13 @@ prism mock openapi.yaml --port 4010
 | **Producción** | Nginx | Linux (Alpine 3.x) |
 | **Producción** | Backend (.NET) | Linux (Debian Slim) |
 | **Producción** | Frontend (build) | Linux (Node Alpine) |
-| **Producción** | PostgreSQL | Linux (Alpine 3.x) |
 
 > ℹ️ Todos los componentes de producción corren en contenedores Docker Linux, independientemente del OS del desarrollador.
 
-> ⚠️ FFmpeg y OpenCV se instalan en el **Dockerfile del backend** (Linux), no en la máquina local del desarrollador.
+> ⚠️ FFmpeg y Python/YOLO se instalan en el **Dockerfile del backend** (Linux), no en la máquina local del desarrollador.
 
 **¿Por qué Debian Slim para el backend?**
-Las librerías nativas de FFmpeg y OpenCV/Emgu CV requieren `glibc` (Debian/Ubuntu). Alpine usa `musl libc`, lo que genera incompatibilidades con estas dependencias. Microsoft también usa Debian como base oficial para sus imágenes .NET.
+Las librerías nativas de FFmpeg y Python requieren `glibc` (Debian/Ubuntu). Alpine usa `musl libc`, lo que genera incompatibilidades. Microsoft también usa Debian como base oficial para sus imágenes .NET.
 
 ---
 
@@ -592,22 +142,21 @@ Las librerías nativas de FFmpeg y OpenCV/Emgu CV requieren `glibc` (Debian/Ubun
           ▼                    ▼
 ┌──────────────────┐  ┌──────────────────┐
 │ React (estático) │  │  Backend Kestrel │
-│ /usr/share/nginx │  │  (.NET Core :5000)│
+│ /usr/share/nginx │  │  (.NET :5000)    │
 └──────────────────┘  └────────┬─────────┘
                                │
                ┌───────────────┴──────────────┐
                │                              │
                ▼                              ▼
     ┌──────────────────┐          ┌──────────────────┐
-    │    PostgreSQL    │          │  Local Storage   │
-    │    Database      │          │   (/uploads)     │
-    └──────────────────┘          └──────────────────┘
+│    SQLite          │          │  Local Storage   │
+│    Database        │          │   (/uploads)     │
+└──────────────────┘          └──────────────────┘
 ```
 
 **Rutas Nginx:**
 - `/` → React SPA (archivos estáticos)
 - `/api/` → Proxy → Kestrel :5000
-- `/uploads/` → Archivos de video locales
 
 ### Diagrama Futuro
 
@@ -631,8 +180,8 @@ Las librerías nativas de FFmpeg y OpenCV/Emgu CV requieren `glibc` (Debian/Ubun
 ### Flujo MVP (Síncrono)
 
 1. **Subida de Video**: Usuario sube → Frontend valida → Backend guarda en `/uploads` + registro en BD
-2. **Procesamiento**: Backend procesa en el mismo request → FFmpeg + YOLO + OpenCV → resultados en BD
-3. **Visualización**: Frontend recibe respuesta directa → renderiza estadísticas y heatmaps
+2. **Procesamiento**: Backend procesa en el mismo request → FFmpeg + YOLO → resultados en BD
+3. **Visualización**: Frontend recibe respuesta directa → renderiza estadísticas
 
 ### Flujo Futuro (Asíncrono)
 
@@ -644,71 +193,47 @@ Las librerías nativas de FFmpeg y OpenCV/Emgu CV requieren `glibc` (Debian/Ubun
 
 ## 🗄️ Diseño de Base de Datos
 
-### Esquema MVP (Sin Autenticación)
+### Esquema MVP (SQLite)
 
-```sql
--- Videos
-CREATE TABLE Videos (
-    Id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    OriginalFileName VARCHAR(255) NOT NULL,
-    StoragePath VARCHAR(500) NOT NULL,
-    FileSize BIGINT NOT NULL,
-    Duration DECIMAL(10,2) NOT NULL,
-    Format VARCHAR(10) NOT NULL,
-    Status VARCHAR(20) DEFAULT 'uploaded', -- uploaded, processing, completed, failed
-    UploadedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    ProcessedAt TIMESTAMP NULL
-);
+```csharp
+// Entities
+public class VideoEntity
+{
+    public Guid Id { get; set; }
+    public string OriginalFileName { get; set; } = string.Empty;
+    public string StoragePath { get; set; } = string.Empty;
+    public long FileSize { get; set; }
+    public double Duration { get; set; }
+    public string Format { get; set; } = string.Empty;
+    public string Status { get; set; } = "uploaded";
+    public DateTime UploadedAt { get; set; }
+    public DateTime? ProcessedAt { get; set; }
+    public AnalysisEntity? Analysis { get; set; }
+}
 
--- Análisis
-CREATE TABLE Analyses (
-    Id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    VideoId UUID NOT NULL REFERENCES Videos(Id),
-    TotalTime DECIMAL(10,2) NOT NULL,
-    TotalPoints INTEGER NOT NULL,
-    PlayerStats JSONB NOT NULL,
-    BallTracking JSONB NOT NULL,
-    CourtPositions JSONB NOT NULL,
-    CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Estadísticas Detalladas
-CREATE TABLE Statistics (
-    Id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    AnalysisId UUID NOT NULL REFERENCES Analyses(Id),
-    StatType VARCHAR(50) NOT NULL, -- distance, speed, position, etc.
-    PlayerIndex INTEGER NOT NULL,  -- 1 or 2
-    Value DECIMAL(10,2) NOT NULL,
-    Metadata JSONB NULL
-);
-
--- Heatmap Data
-CREATE TABLE HeatmapData (
-    Id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    AnalysisId UUID NOT NULL REFERENCES Analyses(Id),
-    PlayerIndex INTEGER NOT NULL,
-    XCoordinate DECIMAL(5,2) NOT NULL,
-    YCoordinate DECIMAL(5,2) NOT NULL,
-    Intensity DECIMAL(3,2) NOT NULL,
-    Timestamp DECIMAL(10,2) NOT NULL
-);
+public class AnalysisEntity
+{
+    public Guid Id { get; set; }
+    public Guid VideoId { get; set; }
+    public VideoEntity Video { get; set; } = null!;
+    public double TotalTime { get; set; }
+    public int TotalPoints { get; set; }
+    public string PlayerStatsJson { get; set; } = "[]";
+    public DateTime CreatedAt { get; set; }
+}
 ```
 
-### Esquema Futuro (Con Autenticación)
+### Configuración EF Core
 
-```sql
--- Usuarios
-CREATE TABLE Users (
-    Id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    Email VARCHAR(255) UNIQUE NOT NULL,
-    PasswordHash VARCHAR(255) NOT NULL,
-    Name VARCHAR(100) NOT NULL,
-    CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UpdatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+```csharp
+// PadelDbContext.cs
+public class PadelDbContext : DbContext
+{
+    public PadelDbContext(DbContextOptions<PadelDbContext> options) : base(options) { }
 
--- Agregar FK a Videos
-ALTER TABLE Videos ADD COLUMN UserId UUID REFERENCES Users(Id);
+    public DbSet<VideoEntity> Videos { get; set; }
+    public DbSet<AnalysisEntity> Analyses { get; set; }
+}
 ```
 
 ---
@@ -725,20 +250,15 @@ FFmpeg (extracción de frames cada N segundos)
     │
     ├──► Python + YOLO v8 → Posiciones [x, y] de jugadores por frame
     │
-    ├──► OpenCV HSV + HoughCircles → Posición [x, y] de pelota por frame
-    │
     ▼
-Kalman Filter (suavizado de trayectorias)
-    │
-    ▼
-Emgu CV en .NET (cálculo de estadísticas)
+Procesamiento de datos
     ├── Distancia recorrida
     ├── Velocidad promedio / máxima
-    ├── Posiciones en cancha (heatmap)
-    └── Tiempo en zonas (red, fondo, laterales)
+    ├── Posiciones en cancha
+    └── Tiempo en zonas
     │
     ▼
-PostgreSQL (persistencia de resultados)
+SQLite (persistencia de resultados)
 ```
 
 ### Comparativa: Detección de Jugadores
@@ -750,18 +270,6 @@ PostgreSQL (persistencia de resultados)
 | MediaPipe | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | Vía Python | ❌ Mejor para pose estimation |
 | Detectron2 | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | Solo Python | ❌ Overkill para MVP |
 | ML.NET | ⭐⭐⭐ | ⭐⭐⭐ | Nativo | ❌ Sin modelos pre-entrenados listos |
-
-### Comparativa: Detección de Pelota
-
-| Herramienta | Precisión Pádel | Complejidad | Decisión |
-|---|---|---|---|
-| **OpenCV HSV + HoughCircles** | ⭐⭐ | Baja | ✅ **Elegida MVP** |
-| TrackNet | ⭐⭐⭐⭐⭐ | Alta | 🔜 Post-MVP |
-| YOLO v8 (general) | ⭐⭐⭐ | Media | ❌ Pierde pelota en alta velocidad |
-| OpenCV Optical Flow | ⭐⭐⭐ | Media | ❌ Solo tracking, no detección |
-| Kalman Filter solo | ⭐⭐⭐⭐ | Media | ❌ Predictor, no detector |
-
-> ⚠️ La pelota de pádel es pequeña y rápida. A 30fps puede aparecer como blur. HSV por color funciona para casos básicos. TrackNet se incorporará en V2.0.
 
 ### Comparativa: Integración Python ↔ .NET
 
@@ -781,17 +289,18 @@ PostgreSQL (persistencia de resultados)
 | Tamaño frame análisis | 640x360 | Reducido para velocidad |
 | Timeout procesamiento | 10 min | Límite razonable para partido |
 
-### Código de Integración (Ejemplo)
+### Código de Integración
 
 ```csharp
-// SyncVideoProcessingService.cs - .NET llama a Python
-public async Task<DetectionResult> DetectPlayersAsync(string videoPath)
+// VideoAnalysisServices.cs - .NET llama a Python
+public async Task<DetectionResult> ProcessVideoAsync(string videoPath)
 {
     var process = new Process {
         StartInfo = new ProcessStartInfo {
             FileName = "python3",
-            Arguments = $"scripts/detect_players.py \"{videoPath}\"",
+            Arguments = $"process_video.py \"{videoPath}\"",
             RedirectStandardOutput = true,
+            RedirectStandardError = true,
             UseShellExecute = false
         }
     };
@@ -803,30 +312,48 @@ public async Task<DetectionResult> DetectPlayersAsync(string videoPath)
 ```
 
 ```python
-# scripts/detect_players.py - YOLO v8
+# python-scripts/process_video.py - YOLO v8
 from ultralytics import YOLO
-import cv2, json, sys
+import cv2
+import json
+import sys
 
 model = YOLO('models/yolov8n.pt')
-cap = cv2.VideoCapture(sys.argv[1])
-detections, frame_count = [], 0
 
-while cap.isOpened():
-    ret, frame = cap.read()
-    if not ret: break
-    if frame_count % 5 == 0:  # 1 de cada 5 frames
-        results = model(frame, classes=[0])  # class 0 = person
-        players = [{'x': (b.xyxy[0][0]+b.xyxy[0][2])/2,
-                    'y': (b.xyxy[0][1]+b.xyxy[0][3])/2,
-                    'confidence': float(b.conf[0])}
-                   for b in results[0].boxes]
-        detections.append({'frame': frame_count,
-                           'timestamp': cap.get(cv2.CAP_PROP_POS_MSEC),
-                           'players': players})
-    frame_count += 1
+def process_video(video_path):
+    cap = cv2.VideoCapture(video_path)
+    detections = []
+    frame_count = 0
 
-cap.release()
-print(json.dumps({'detections': detections}))
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        if frame_count % 5 == 0:  # 1 de cada 5 frames
+            results = model(frame, classes=[0])  # class 0 = person
+            players = []
+            for box in results[0].boxes:
+                x1, y1, x2, y2 = box.xyxy[0]
+                players.append({
+                    'x': float((x1 + x2) / 2),
+                    'y': float((y1 + y2) / 2),
+                    'confidence': float(box.conf[0])
+                })
+            detections.append({
+                'frame': frame_count,
+                'timestamp': cap.get(cv2.CAP_PROP_POS_MSEC),
+                'players': players
+            })
+
+        frame_count += 1
+
+    cap.release()
+    return {'detections': detections, 'total_frames': frame_count}
+
+if __name__ == "__main__":
+    result = process_video(sys.argv[1])
+    print(json.dumps(result))
 ```
 
 ---
@@ -837,105 +364,67 @@ print(json.dumps({'detections': detections}))
 AnalizadorPadel/
 ├── backend/
 │   ├── src/
-│   │   ├── Controllers/
-│   │   │   ├── VideosController.cs
-│   │   │   └── AnalysesController.cs
-│   │   ├── Services/
-│   │   │   ├── Interfaces/
-│   │   │   │   ├── IVideoStorageService.cs
-│   │   │   │   ├── IVideoProcessingService.cs
-│   │   │   │   └── IAnalysisService.cs
-│   │   │   ├── Implementations/
-│   │   │   │   ├── LocalVideoStorageService.cs
-│   │   │   │   ├── SyncVideoProcessingService.cs
-│   │   │   │   └── AnalysisService.cs
-│   │   │   └── DTOs/
-│   │   │       ├── VideoUploadDTO.cs
-│   │   │       └── AnalysisResultDTO.cs
-│   │   ├── Models/
-│   │   │   ├── Entities/
-│   │   │   │   ├── Video.cs
-│   │   │   │   └── Analysis.cs
-│   │   │   └── Enums/
-│   │   │       └── VideoStatus.cs
-│   │   ├── Data/
-│   │   │   ├── ApplicationDbContext.cs
-│   │   │   ├── Repositories/
-│   │   │   └── Migrations/
-│   │   ├── Middleware/
-│   │   │   └── ExceptionHandlingMiddleware.cs
-│   │   └── Configuration/
-│   │       └── AppSettings.cs
-│   ├── tests/
-│   │   ├── Unit/
-│   │   └── Integration/
-│   ├── scripts/
-│   │   ├── detect_players.py
-│   │   ├── detect_ball.py
-│   │   └── requirements.txt
-│   ├── models/
-│   │   └── yolov8n.pt
-│   ├── uploads/
-│   ├── Dockerfile
-│   └── AnalizadorPadel.csproj
+│   │   └── AnalizadorPadel.Api/
+│   │       ├── Program.cs              # Minimal APIs, configuración
+│   │       ├── AnalizadorPadel.Api.csproj
+│   │       ├── appsettings.json
+│   │       ├── openapi.json            # Especificación OpenAPI
+│   │       ├── Data/
+│   │       │   └── PadelDbContext.cs   # EF Core DbContext
+│   │       ├── Models/
+│   │       │   ├── Entities/           # VideoEntity, AnalysisEntity
+│   │       │   └── DTOs/               # ApiDtos.cs
+│   │       └── Services/
+│   │           └── VideoAnalysisServices.cs
+│   └── tests/
+│       └── AnalizadorPadel.Api.Tests/
+│           ├── Unit/                   # Tests unitarios
+│           │   └── Services/
+│           ├── Integration/            # Tests de integración
+│           └── BDD/                    # SpecFlow
+│               ├── Features/
+│               └── StepDefinitions/
 ├── frontend/
 │   ├── src/
-│   │   ├── components/
-│   │   │   ├── common/
-│   │   │   │   ├── Button/
-│   │   │   │   ├── Input/
-│   │   │   │   └── Loading/
-│   │   │   ├── video/
-│   │   │   │   ├── VideoUploader/
-│   │   │   │   ├── VideoPlayer/
-│   │   │   │   └── VideoPreview/
-│   │   │   ├── analysis/
-│   │   │   │   ├── StatsDisplay/
-│   │   │   │   ├── Heatmap/
-│   │   │   │   └── ReportDownload/
-│   │   │   └── layout/
-│   │   │       ├── Header/
-│   │   │       ├── Sidebar/
-│   │   │       └── Footer/
-│   │   ├── pages/
+│   │   ├── components/                 # Componentes React
+│   │   │   ├── Layout.tsx
+│   │   │   └── VideoPlayer/
+│   │   ├── pages/                      # Páginas
 │   │   │   ├── Dashboard/
-│   │   │   ├── Upload/
-│   │   │   └── Analysis/
+│   │   │   ├── Videos.tsx
+│   │   │   └── Analyses.tsx
 │   │   ├── services/
-│   │   │   ├── api/
-│   │   │   │   ├── videoService.ts
-│   │   │   │   └── analysisService.ts
-│   │   │   └── storage/
-│   │   │       └── localStorageService.ts
-│   │   ├── hooks/
-│   │   │   ├── useVideoUpload.ts
-│   │   │   └── useAnalysis.ts
-│   │   ├── types/
-│   │   │   ├── Video.ts
-│   │   │   └── Analysis.ts
-│   │   ├── utils/
-│   │   │   ├── constants.ts
-│   │   │   ├── helpers.ts
-│   │   │   └── validators.ts
-│   │   ├── styles/
-│   │   │   ├── globals.css
-│   │   │   └── theme.ts
-│   │   ├── App.tsx
-│   │   └── main.tsx
-│   ├── public/
+│   │   │   └── api/
+│   │   │       ├── openapi.json
+│   │   │       └── generated/          # Tipos TypeScript generados
+│   │   ├── store/                      # Zustand stores
+│   │   └── test/                       # Configuración de tests
 │   ├── package.json
 │   ├── vite.config.ts
-│   ├── tsconfig.json
-│   └── Dockerfile
-├── nginx/
-│   └── nginx.conf
-├── docker-compose.yml
-├── docs/
+│   └── tsconfig.json
+├── python-scripts/
+│   ├── process_video.py                # Script principal de procesamiento
+│   ├── requirements.txt
+│   └── tests/                          # Tests de Python
+├── e2e/                                # Tests E2E con Playwright
+│   ├── tests/
+│   │   └── video-upload.spec.ts
+│   ├── playwright.config.ts
+│   └── package.json
+├── infrastructure/
+│   ├── Dockerfile.api                  # Backend + Python
+│   ├── Dockerfile.frontend             # Nginx + React build
+│   └── nginx.conf                      # Configuración Nginx
+├── docker-compose.yml                  # Orquestación de contenedores
+├── models/                             # Modelos ML (YOLO)
+├── spikes/                             # Investigaciones y spikes
+├── docs/                               # Documentación
+│   ├── ADR/                            # Architecture Decision Records
 │   ├── PRODUCT.md
 │   ├── TECHNICAL.md
 │   └── PLANNING.md
-├── README.md
-└── .gitignore
+├── scripts/                            # Scripts de utilidad
+└── README.md
 ```
 
 ---
@@ -946,33 +435,28 @@ AnalizadorPadel/
 
 ```csharp
 // Program.cs
-builder.Services.AddScoped<IVideoStorageService, LocalVideoStorageService>();
-builder.Services.AddScoped<IVideoProcessingService, SyncVideoProcessingService>();
-builder.Services.AddScoped<IAnalysisService, AnalysisService>();
+builder.Services.AddScoped<VideoService>();
+builder.Services.AddScoped<AnalysisService>();
 ```
 
 ### Frontend — Interfaces Desacopladas
 
 ```typescript
-interface IVideoService {
-  uploadVideo(file: File): Promise<VideoUploadResponse>;
-  getAnalysis(videoId: string): Promise<AnalysisResult>;
-}
+// Servicios tipados con OpenAPI
+import type { paths } from './services/api/generated/types';
 
-interface IStorageService {
-  save(key: string, data: any): void;
-  get(key: string): any;
-}
+export type VideoDto = paths['/api/videos']['get']['responses']['200']['content']['application/json']['data'][number];
+export type AnalysisDto = paths['/api/analyses/{id}']['get']['responses']['200']['content']['application/json'];
 ```
 
 ### Preparación para Escalar
 
 | Componente Actual | Reemplazo Futuro |
 |---|---|
-| `LocalVideoStorageService` | `S3VideoStorageService` |
-| `SyncVideoProcessingService` | `AsyncVideoProcessingService` |
+| `VideoService` (sync) | `AsyncVideoProcessingService` |
+| SQLite | PostgreSQL |
 | Python subprocess | FastAPI microservicio |
-| OpenCV HSV (pelota) | TrackNet |
+| Local storage | AWS S3 / Azure Blob |
 | Sin autenticación | JWT Middleware |
 
 ---
@@ -990,7 +474,9 @@ public enum ErrorCode
     VideoTooShort = 4003,
     VideoCorrupted = 4004,
     ProcessingTimeout = 4005,
-    
+    VideoNotFound = 4006,
+    AnalysisNotFound = 4007,
+
     // Errores de Servidor (5xx)
     StorageUnavailable = 5001,
     DatabaseConnectionFailed = 5002,
@@ -1009,7 +495,7 @@ public class ApiErrorResponse
     public int StatusCode { get; set; }
     public string ErrorCode { get; set; }
     public string Message { get; set; }
-    public string Detail { get; set; }
+    public string? Detail { get; set; }
     public DateTime Timestamp { get; set; }
     public string RequestId { get; set; }
 }
@@ -1023,7 +509,7 @@ public class ApiErrorResponse
     "errorCode": "FileTooLarge",
     "message": "El archivo excede el tamaño máximo permitido",
     "detail": "Tamaño del archivo: 750MB. Máximo permitido: 500MB",
-    "timestamp": "2026-02-18T19:30:00Z",
+    "timestamp": "2026-03-21T14:30:00Z",
     "requestId": "abc123-def456"
 }
 ```
@@ -1042,118 +528,39 @@ public class ApiErrorResponse
 ### Middleware de Excepciones
 
 ```csharp
-public class ExceptionHandlingMiddleware
+// Configurado en Program.cs
+app.UseExceptionHandler(errorApp =>
 {
-    private readonly RequestDelegate _next;
-    private readonly ILogger<ExceptionHandlingMiddleware> _logger;
-
-    public ExceptionHandlingMiddleware(RequestDelegate next, ILogger<ExceptionHandlingMiddleware> logger)
+    errorApp.Run(async context =>
     {
-        _next = next;
-        _logger = logger;
-    }
-
-    public async Task InvokeAsync(HttpContext context)
-    {
-        try
+        context.Response.StatusCode = 500;
+        context.Response.ContentType = "application/json";
+        var exception = context.Features.Get<IExceptionHandlerFeature>()?.Error;
+        await context.Response.WriteAsJsonAsync(new
         {
-            await _next(context);
-        }
-        catch (VideoProcessingException ex)
-        {
-            _logger.LogError(ex, "Error procesando video");
-            context.Response.StatusCode = 500;
-            await context.Response.WriteAsJsonAsync(new ApiErrorResponse
-            {
-                StatusCode = 500,
-                ErrorCode = nameof(ErrorCode.PythonScriptFailed),
-                Message = "Error al procesar el video",
-                Detail = ex.Message,
-                Timestamp = DateTime.UtcNow,
-                RequestId = context.TraceIdentifier
-            });
-        }
-        catch (FileNotFoundException ex)
-        {
-            _logger.LogError(ex, "Archivo no encontrado");
-            context.Response.StatusCode = 404;
-            await context.Response.WriteAsJsonAsync(new ApiErrorResponse
-            {
-                StatusCode = 404,
-                ErrorCode = nameof(ErrorCode.VideoCorrupted),
-                Message = "El archivo de video no fue encontrado",
-                Detail = ex.Message,
-                Timestamp = DateTime.UtcNow,
-                RequestId = context.TraceIdentifier
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error no controlado");
-            context.Response.StatusCode = 500;
-            await context.Response.WriteAsJsonAsync(new ApiErrorResponse
-            {
-                StatusCode = 500,
-                ErrorCode = nameof(ErrorCode.UnknownError),
-                Message = "Ha ocurrido un error inesperado",
-                Detail = "Contacte al administrador",
-                Timestamp = DateTime.UtcNow,
-                RequestId = context.TraceIdentifier
-            });
-        }
-    }
-}
-```
-
-### Políticas de Retry
-
-```csharp
-public class ProcessingRetryPolicy
-{
-    private readonly ILogger<ProcessingRetryPolicy> _logger;
-
-    public ProcessingRetryPolicy(ILogger<ProcessingRetryPolicy> logger)
-    {
-        _logger = logger;
-    }
-
-    public IAsyncPolicy<ProcessResult> Policy => Policy
-        .HandleResult<ProcessResult>(r => r.Failed)
-        .WaitAndRetryAsync(
-            retryCount: 3,
-            sleepDurationProvider: retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)),
-            onRetry: (outcome, timespan, retryAttempt, context) =>
-            {
-                _logger.LogWarning("Retry {RetryAttempt} después de {Delay}s", 
-                    retryAttempt, timespan.TotalSeconds);
-            });
-}
+            error = "An internal error occurred",
+            requestId = context.TraceIdentifier
+        });
+    });
+});
 ```
 
 ### Validaciones Preventivas
 
 ```csharp
-public class VideoValidationService
+public static class VideoValidation
 {
-    private static readonly string[] AllowedExtensions = { ".mp4", ".avi", ".mov" };
-    private static readonly string[] AllowedMimeTypes = { "video/mp4", "video/x-msvideo", "video/quicktime" };
+    private static readonly string[] AllowedExtensions = { ".mp4", ".avi", ".mov", ".mkv" };
     private const int MaxFileSizeMB = 500;
-    private const int MinDurationSeconds = 60;
 
-    public ValidationResult Validate(IFormFile file)
+    public static ValidationResult Validate(IFormFile file)
     {
-        // Validar extensión
         var extension = Path.GetExtension(file.FileName).ToLower();
         if (!AllowedExtensions.Contains(extension))
-            return ValidationResult.Fail("Formato no soportado. Use MP4, AVI o MOV.");
+            return ValidationResult.Fail($"Formato no soportado. Use: {string.Join(", ", AllowedExtensions)}");
 
-        // Validar MIME type (magic number)
-        if (!AllowedMimeTypes.Contains(file.ContentType))
-            return ValidationResult.Fail("El archivo no es un video válido.");
-
-        // Validar tamaño
         if (file.Length > MaxFileSizeMB * 1024 * 1024)
-            return ValidationResult.Fail($"El archivo excede {MaxFileSizeMB}MB.");
+            return ValidationResult.Fail($"El archivo excede {MaxFileSizeMB}MB");
 
         return ValidationResult.Success();
     }
@@ -1164,11 +571,12 @@ public class VideoValidationService
 
 ## Configuración de Servidores
 
-### Nginx (`nginx/nginx.conf`)
+### Nginx (`infrastructure/nginx.conf`)
 
 ```nginx
 server {
     listen 80;
+    server_name localhost;
 
     # Frontend - React SPA
     location / {
@@ -1179,7 +587,7 @@ server {
 
     # Backend - .NET API
     location /api/ {
-        proxy_pass http://backend:5000;
+        proxy_pass http://api:5000;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection keep-alive;
@@ -1187,172 +595,171 @@ server {
         proxy_cache_bypass $http_upgrade;
         client_max_body_size 500M;
     }
-
-    # Videos - Archivos locales
-    location /uploads/ {
-        alias /var/uploads/;
-        add_header Accept-Ranges bytes;
-    }
 }
 ```
 
 ### Docker Compose (`docker-compose.yml`)
 
 ```yaml
-version: '3.8'
 services:
-  nginx:
-    image: nginx:alpine
-    ports:
-      - "80:80"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
-      - frontend_build:/usr/share/nginx/html
-      - uploads:/var/uploads
-    depends_on:
-      - backend
-      - frontend
-
-  backend:
-    build: ./backend
-    expose:
-      - "5000"
-    volumes:
-      - uploads:/app/uploads
+  api:
+    build:
+      context: .
+      dockerfile: infrastructure/Dockerfile.api
     environment:
-      - ConnectionStrings__DefaultConnection=Host=postgres;Database=padeldb;Username=postgres;Password=postgres
-    depends_on:
-      - postgres
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__DefaultConnection=Data Source=/app/data/padel.db
+    volumes:
+      - padel-data:/app/data
+      - padel-uploads:/app/uploads
+    ports:
+      - "5001:5000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   frontend:
-    build: ./frontend
-    volumes:
-      - frontend_build:/app/dist
-
-  postgres:
-    image: postgres:16-alpine
+    build:
+      context: .
+      dockerfile: infrastructure/Dockerfile.frontend
     ports:
-      - "5432:5432"
-    environment:
-      - POSTGRES_DB=padeldb
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - "80:80"
+    depends_on:
+      api:
+        condition: service_healthy
 
 volumes:
-  postgres_data:
-  uploads:
-  frontend_build:
+  padel-data:
+  padel-uploads:
+  padel-outputs:
+  padel-logs:
 ```
 
 ---
 
 ## 🧪 Estrategia de Testing
 
-### Enfoque Híbrido: BDD + TDD
+### Enfoque Híbrido: BDD + TDD + E2E
 
 | Tipo | Herramienta | Uso |
 |------|-------------|-----|
 | **BDD** | SpecFlow | Features de usuario (User Stories) |
 | **TDD** | xUnit + FluentAssertions | Lógica de negocio |
-| **Mocking** | Moq | Dependencias en tests unitarios |
-
-### Justificación
-
-- Las User Stories definidas en PRODUCT.md se traducen directamente a escenarios Gherkin
-- SpecFlow genera documentación viva del sistema
-- xUnit es el estándar de .NET con mejor rendimiento
-- FluentAssertions mejora legibilidad de tests
+| **Integration** | WebApplicationFactory | Tests de integración API |
+| **Frontend** | Vitest + React Testing Library | Componentes React |
+| **E2E** | Playwright | Flujos completos de usuario |
+| **Mocking** | Moq / MSW | Dependencias en tests |
 
 ### Herramientas
 
 | Herramienta | Versión | Propósito |
 |-------------|---------|-----------|
-| xUnit | 2.x | Framework de testing principal |
-| SpecFlow | 3.x | BDD con Gherkin |
-| FluentAssertions | 6.x | Assertions expresivas |
-| Moq | 4.x | Mock objects |
+| xUnit | 2.9.x | Framework de testing principal (.NET) |
+| SpecFlow | 3.9.x | BDD con Gherkin |
+| FluentAssertions | 8.x | Assertions expresivas |
+| Moq | 4.20.x | Mock objects |
+| Vitest | 4.x | Framework de testing (Frontend) |
+| React Testing Library | 16.x | Testing de componentes React |
+| MSW | 2.x | Mock Service Worker (API mocking) |
+| Playwright | 1.x | Tests E2E |
 
 ### Estructura de Tests
 
 ```
-backend/tests/
-├── Unit/                    # TDD - Tests unitarios puros
-│   ├── Validators/          # VideoValidationService tests
-│   │   └── VideoValidationServiceTests.cs
-│   ├── Services/            # Lógica de negocio
-│   │   ├── StatisticsCalculatorTests.cs
-│   │   └── HeatmapGeneratorTests.cs
-│   └── Helpers/             # Utilidades
-│       └── FileHelperTests.cs
-├── Integration/             # Tests de integración API
-│   └── Controllers/
-│       ├── VideosControllerTests.cs
-│       └── AnalysesControllerTests.cs
-└── BDD/                     # SpecFlow
-    ├── Features/            # Archivos .feature
-    │   ├── VideoUpload.feature
-    │   ├── Statistics.feature
-    │   └── Processing.feature
-    ├── Steps/               # Step definitions
-    │   ├── VideoUploadSteps.cs
-    │   └── CommonSteps.cs
-    └── Hooks/               # Setup/Teardown
-        └── TestHooks.cs
+backend/tests/AnalizadorPadel.Api.Tests/
+├── Unit/                          # TDD - Tests unitarios
+│   └── Services/
+│       ├── VideoServiceTests.cs
+│       └── AnalysisServiceTests.cs
+├── Integration/                   # Tests de integración
+│   ├── VideoEndpointsTests.cs
+│   └── AnalysisEndpointsTests.cs
+├── BDD/                           # SpecFlow
+│   ├── Features/
+│   │   ├── US-1-SubirVideo.feature
+│   │   └── US-2-VerEstadisticas.feature
+│   └── StepDefinitions/
+│       ├── VideoSteps.cs
+│       └── AnalysisSteps.cs
+└── Infrastructure/
+    ├── CustomWebApplicationFactory.cs
+    └── TestBase.cs
+
+frontend/src/
+├── components/
+│   ├── Layout.test.tsx
+│   └── VideoPlayer/
+│       └── VideoPlayer.test.tsx
+├── pages/Dashboard/
+│   └── Dashboard.test.tsx
+└── test/
+    ├── setup.ts
+    └── mocks/
+        ├── handlers.ts
+        └── server.ts
+
+e2e/
+├── tests/
+│   └── video-upload.spec.ts
+└── playwright.config.ts
 ```
 
 ### Ejemplo: Feature BDD (Gherkin)
 
 ```gherkin
-Feature: Subida de Videos
+Feature: Subida de Videos (US-1)
     Como jugador de pádel
     Quiero subir un video de mi partido
     Para obtener un análisis automático de mi juego
 
     @smoke
-    Scenario: Video válido se procesa exitosamente
-        Given que estoy en la página de subida
-        When arrastro un video válido de 100MB
-        Then veo la barra de progreso completar al 100%
-        And puedo hacer clic en "Procesar"
+    Scenario: Video válido se sube exitosamente
+        Given que tengo un video válido de pádel
+        When subo el video al sistema
+        Then el video se guarda correctamente
+        And recibo una confirmación con el ID del video
 
     @validation
     Scenario: Video muy grande muestra error
-        Given que estoy en la página de subida
-        When arrastro un video de 750MB
-        Then veo el mensaje "El archivo excede 500MB"
+        Given que tengo un video de 750MB
+        When intento subir el video
+        Then recibo un error indicando que el archivo excede el límite
 ```
 
 ### Ejemplo: Step Definitions (SpecFlow)
 
 ```csharp
 [Binding]
-public class VideoUploadSteps
+public class VideoSteps
 {
-    private readonly UploadContext _context;
-    
-    public VideoUploadSteps(UploadContext context)
+    private readonly HttpClient _client;
+    private HttpResponseMessage _response;
+
+    public VideoSteps(CustomWebApplicationFactory factory)
     {
-        _context = context;
+        _client = factory.CreateClient();
     }
 
-    [Given(@"que estoy en la página de subida")]
-    public void GivenQueEstoyEnPaginaSubida()
+    [Given("que tengo un video válido de pádel")]
+    public void GivenQueTengoVideoValido()
     {
-        _context.Page = new UploadPage();
+        // Setup
     }
 
-    [When(@"arrastro un video válido de (.*)MB")]
-    public void WhenArrojoVideoValido(int sizeMB)
+    [When("subo el video al sistema")]
+    public async Task WhenSuboElVideo()
     {
-        _context.Result = _context.Uploader.Upload($"test_{sizeMB}mb.mp4");
+        var content = new MultipartFormDataContent();
+        content.Add(new StreamContent(File.OpenRead("test.mp4")), "file", "test.mp4");
+        _response = await _client.PostAsync("/api/videos", content);
     }
 
-    [Then(@"veo la barra de progreso completar al (.*)%")]
-    public void ThenVeoBarraProgreso(int percentage)
+    [Then("el video se guarda correctamente")]
+    public void ThenElVideoSeGuarda()
     {
-        _context.Result.Progress.Should().Be(percentage);
+        _response.StatusCode.Should().Be(HttpStatusCode.Created);
     }
 }
 ```
@@ -1360,96 +767,114 @@ public class VideoUploadSteps
 ### Ejemplo: Test TDD (xUnit + FluentAssertions)
 
 ```csharp
-public class VideoValidationServiceTests
+public class VideoServiceTests
 {
-    private readonly VideoValidationService _sut;
+    private readonly VideoService _sut;
+    private readonly Mock<PadelDbContext> _dbContextMock;
 
-    public VideoValidationServiceTests()
+    public VideoServiceTests()
     {
-        _sut = new VideoValidationService();
+        _dbContextMock = new Mock<PadelDbContext>();
+        _sut = new VideoService(_dbContextMock.Object);
     }
 
     [Fact]
-    public void Validate_CuandoArchivoEsMP4_DebeRetornarSuccess()
+    public async Task GetVideoById_WithExistingId_ShouldReturnVideo()
     {
         // Arrange
-        var file = CreateMockFile("video.mp4", "video/mp4", 100 * 1024 * 1024);
+        var videoId = Guid.NewGuid();
+        var expectedVideo = new VideoEntity { Id = videoId, OriginalFileName = "test.mp4" };
+        _dbContextMock.Setup(x => x.Videos.FindAsync(videoId))
+            .ReturnsAsync(expectedVideo);
 
         // Act
-        var result = _sut.Validate(file);
+        var result = await _sut.GetVideoByIdAsync(videoId);
 
         // Assert
-        result.IsValid.Should().BeTrue();
-    }
-
-    [Theory]
-    [InlineData("video.exe", "application/exe")]
-    [InlineData("video.txt", "text/plain")]
-    [InlineData("video.pdf", "application/pdf")]
-    public void Validate_CuandoFormatoInvalido_DebeRetornarError(string fileName, string mimeType)
-    {
-        // Arrange
-        var file = CreateMockFile(fileName, mimeType, 1024);
-
-        // Act
-        var result = _sut.Validate(file);
-
-        // Assert
-        result.IsValid.Should().BeFalse();
-        result.ErrorMessage.Should().Contain("Formato no soportado");
-    }
-
-    [Fact]
-    public void Validate_CuandoArchivoExcede500MB_DebeRetornarError()
-    {
-        // Arrange
-        var file = CreateMockFile("video.mp4", "video/mp4", 600 * 1024 * 1024);
-
-        // Act
-        var result = _sut.Validate(file);
-
-        // Assert
-        result.IsValid.Should().BeFalse();
-        result.ErrorMessage.Should().Contain("excede");
+        result.Should().NotBeNull();
+        result!.Id.Should().Be(videoId);
+        result.OriginalFileName.Should().Be("test.mp4");
     }
 }
 ```
 
+### Ejemplo: Test Frontend (Vitest)
+
+```typescript
+import { render, screen } from '@testing-library/react';
+import { describe, it, expect } from 'vitest';
+import { Layout } from './Layout';
+
+describe('Layout', () => {
+    it('should render navigation links', () => {
+        render(<Layout />);
+
+        expect(screen.getByText('Dashboard')).toBeInTheDocument();
+        expect(screen.getByText('Videos')).toBeInTheDocument();
+        expect(screen.getByText('Analyses')).toBeInTheDocument();
+    });
+});
+```
+
+### Ejemplo: Test E2E (Playwright)
+
+```typescript
+import { test, expect } from '@playwright/test';
+
+test.describe('Video Upload E2E', () => {
+    test('user can upload a video', async ({ page }) => {
+        await page.goto('/videos');
+        await page.getByText('Upload Video').click();
+
+        const fileInput = page.locator('input[type="file"]');
+        await fileInput.setInputFiles('test-data/sample.mp4');
+
+        await page.getByText('Submit').click();
+
+        await expect(page.getByText('Video uploaded successfully')).toBeVisible();
+    });
+});
+```
+
 ### Cobertura de Tests por User Story
 
-| User Story | Escenarios BDD | Tests TDD | Prioridad |
-|------------|----------------|-----------|-----------|
-| US-1: Subir Video | 5 | 8 | Alta |
-| US-2: Ver Estadísticas | 5 | 6 | Alta |
-| US-3: Descargar PDF | 3 | 2 | Media |
-| US-4: Historial | 3 | 4 | Media |
-| US-5: Monitorear | 4 | 3 | Alta |
+| User Story | Escenarios BDD | Tests TDD | Tests E2E | Prioridad |
+|------------|----------------|-----------|-----------|-----------|
+| US-1: Subir Video | 5 | 8 | 2 | Alta |
+| US-2: Ver Estadísticas | 5 | 6 | 2 | Alta |
+| US-3: Descargar PDF | 3 | 2 | 1 | Media |
+| US-4: Historial | 3 | 4 | 1 | Media |
+| US-5: Monitorear | 4 | 3 | 1 | Alta |
 
-### Configuración de CI/CD
+### Comandos de Ejecución
 
-```yaml
-# .github/workflows/test.yml
-name: Tests
+```bash
+# Backend tests
+dotnet test backend/AnalizadorPadel.sln
 
-on: [push, pull_request]
+# Frontend tests
+cd frontend && npm test
 
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v3
-        with:
-          dotnet-version: 10.0.x
-      - name: Restore dependencies
-        run: dotnet restore backend/AnalizadorPadel.sln
-      - name: Build
-        run: dotnet build backend/AnalizadorPadel.sln --no-restore
-      - name: Test
-        run: dotnet test backend/AnalizadorPadel.sln --no-build --verbosity normal
+# E2E tests
+cd e2e && npx playwright test
+
+# All tests
+./scripts/validate.sh
 ```
 
 ---
 
-*Última actualización: 18 de Febrero 2026*
+## 📚 Documentación Adicional
+
+- **[PRODUCT.md](PRODUCT.md)** - Especificación de producto y User Stories
+- **[PLANNING.md](PLANNING.md)** - Planificación y roadmap del proyecto
+- **[ADR/README.md](ADR/README.md)** - Architecture Decision Records
+  - ADR-001: Stack tecnológico backend
+  - ADR-002: Estrategia de testing
+  - ADR-003: API First
+  - ADR-004: Estructura del proyecto
+  - ADR-005: Reorganización de carpetas
+
+---
+
+*Última actualización: 21 de Marzo 2026*

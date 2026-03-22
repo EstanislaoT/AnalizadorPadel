@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Grid, Typography, CircularProgress, Alert, List, ListItem, ListItemButton, ListItemText, Chip, Paper } from '@mui/material';
 import { AnalizadorPadelApiService } from '../services/api/generated/services/AnalizadorPadelApiService';
-import VideoPlayer from '../components/VideoPlayer';
+import VideoPlayer from '../components/VideoPlayer/VideoPlayer';
 import type { VideoDto } from '../services/api/generated/models/VideoDto';
 
 export const Videos: React.FC = () => {

@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { Box, Grid, Card, CardContent, Typography, CircularProgress, Alert, List, ListItem, ListItemText, Chip, Paper } from '@mui/material';
 import { VideoLibrary, Analytics, CheckCircle, TrendingUp } from '@mui/icons-material';
-import { useDashboardStore } from '../store/dashboardStore';
+import { useDashboardStore } from '../../store/dashboardStore';
 
 export const Dashboard: React.FC = () => {
   const { stats, loading, error, fetchStats } = useDashboardStore();
@@ -43,13 +43,13 @@ export const Dashboard: React.FC = () => {
   }
 
   return (
-    <Box>
-      <Typography variant="h4" sx={{ mb: 4 }}>
+    <Box data-testid="dashboard-container">
+      <Typography variant="h4" sx={{ mb: 4 }} data-testid="dashboard-title">
         Dashboard
       </Typography>
 
       {/* Stats Cards */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
+      <Grid container spacing={3} sx={{ mb: 4 }} data-testid="stats-container">
         <Grid item xs={12} sm={6} md={3}>
           <Card sx={{ bgcolor: '#1976d2', color: 'white' }}>
             <CardContent>
@@ -110,7 +110,7 @@ export const Dashboard: React.FC = () => {
       {/* Recent Videos and Analyses */}
       <Grid container spacing={3}>
         <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 2 }}>
+          <Paper sx={{ p: 2 }} data-testid="recent-videos">
             <Typography variant="h6" sx={{ mb: 2 }}>
               Videos Recientes
             </Typography>
@@ -139,7 +139,7 @@ export const Dashboard: React.FC = () => {
         </Grid>
 
         <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 2 }}>
+          <Paper sx={{ p: 2 }} data-testid="recent-analyses">
             <Typography variant="h6" sx={{ mb: 2 }}>
               Análisis Recientes
             </Typography>
@@ -185,3 +185,5 @@ export const Dashboard: React.FC = () => {
     </Box>
   );
 };
+
+export default Dashboard;
