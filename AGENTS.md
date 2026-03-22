@@ -20,7 +20,7 @@
 - Interfaz para subir videos (MP4, AVI, MOV)
 - Límite de tamaño: 500MB
 - Validación de formato y duración mínima (1 minuto)
-- Almacenamiento local en `/uploads`
+- Almacenamiento local en rutas runtime fuera del código fuente
 
 ### 2. Procesamiento de Video
 - Detección de jugadores usando **YOLO v8** vía Python subprocess
@@ -82,6 +82,9 @@ AnalizadorPadel/
 │   └── nginx.conf                        # Configuración reverse proxy
 ├── docker-compose.yml                    # Orquestación de servicios
 ├── docs/                                 # Documentación (ADR, PRODUCT, TECHNICAL)
+├── ml-models/                            # Modelos y pesos de ML
+├── test-videos/                          # Assets para pruebas manuales y test data
+├── var/                                  # Estado mutable de ejecución
 └── spikes/                               # Experimentos técnicos
 ```
 
@@ -109,7 +112,7 @@ AnalizadorPadel/
            ▼                              ▼
 ┌──────────────────┐          ┌──────────────────┐
 │    SQLite        │          │  Local Storage   │
-│    Database      │          │   (/uploads)     │
+│    Database      │          │   (/var/*)       │
 └──────────────────┘          └──────────────────┘
 ```
 
@@ -153,10 +156,11 @@ docker-compose up -d
 
 # Ver logs
 docker-compose logs -f
+```
 
 # Desarrollo local
 Ver AGENTS.md de cada capa para comandos y validaciones específicas
-```
+
 
 ---
 
