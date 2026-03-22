@@ -16,8 +16,8 @@ export const Videos: React.FC = () => {
       setError(null);
       try {
         const response = await AnalizadorPadelApiService.getVideos();
-        if (response.data?.success && response.data?.data) {
-          setVideos(response.data.data as VideoDto[]);
+        if (response.success && response.data) {
+          setVideos(response.data as VideoDto[]);
         }
       } catch (err: any) {
         setError(err.message || 'Failed to fetch videos');

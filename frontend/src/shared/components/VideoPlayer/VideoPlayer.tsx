@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 export interface VideoPlayerProps {
   videoId: number;
@@ -29,7 +29,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const videoSrc = `${API_BASE_URL}/videos/${videoId}/stream`;
+  const videoSrc = `${API_BASE_URL}/api/videos/${videoId}/stream`;
 
   useEffect(() => {
     // Reset state when videoId changes

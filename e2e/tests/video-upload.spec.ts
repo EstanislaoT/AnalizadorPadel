@@ -1,92 +1,115 @@
-import { test, expect } from '@playwright/test';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import crypto from 'node:crypto';
+import { test, expect, type APIRequestContext } from '@playwright/test';
 
-test.describe('Video Upload Flow', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto('/videos');
+const apiBaseUrl = process.env.API_BASE_URL || 'http://localhost:5050';
+const sampleVideoPath = path.resolve(__dirname, '../../test-videos/FinalPadelPrueba1.mp4');
+
+type CreatedVideo = {
+  id: number;
+  name: string;
+};
+
+async function createVideoFixture(request: APIRequestContext): Promise<CreatedVideo> {
+  const buffer = await fs.readFile(sampleVideoPath);
+  const uniqueName = `e2e-${crypto.randomUUID()}.mp4`;
+
+  const response = await request.post(`${apiBaseUrl}/api/videos`, {
+    multipart: {
+      file: {
+        name: uniqueName,
+        mimeType: 'video/mp4',
+        buffer,
+      },
+    },
   });
 
-  test('should display video upload page', async ({ page }) => {
-    await expect(page.locator('h1, h2, h3')).toContainText(/video|vídeo/i);
-    await expect(page.locator('input[type="file"]')).toBeVisible();
-  });
+  expect(response.status()).toBe(201);
 
-  test('should show error when uploading invalid file type', async ({ page }) => {
-    const fileInput = page.locator('input[type="file"]');
-    
-    // Create a text file to upload
-    const invalidFile = {
-      name: 'test.txt',
-      mimeType: 'text/plain',
-      buffer: Buffer.from('invalid content'),
-    };
+  const body = await response.json();
+  expect(body.success).toBe(true);
 
-    await fileInput.setInputFiles(invalidFile);
-    
-    // Submit the form if there's a submit button
-    const submitButton = page.locator('button[type="submit"], button:has-text("Subir"), button:has-text("Upload")');
-    if (await submitButton.isVisible().catch(() => false)) {
-      await submitButton.click();
-      await expect(page.locator('text=/formato no soportado|format not supported/i')).toBeVisible();
+  return {
+    id: body.data.id,
+    name: body.data.name,
+  };
+}
+
+test.describe('Dashboard Flow', () => {
+  test('should display dashboard stats from the real backend', async ({ page, request }) => {
+    const createdVideo = await createVideoFixture(request);
+
+    try {
+      await page.goto('/');
+      await expect(page.getByTestId('dashboard-title')).toHaveText('Dashboard');
+      await expect(page.getByText('Videos Recientes')).toBeVisible();
+      await expect(page.getByTestId('recent-videos').getByText(createdVideo.name).first()).toBeVisible();
+    } finally {
+      await request.delete(`${apiBaseUrl}/api/videos/${createdVideo.id}`);
     }
   });
 
-  test('should navigate to videos list', async ({ page }) => {
-    // Check that videos page loads
-    await expect(page).toHaveURL(/.*videos.*/);
-    
-    // Check for list or empty state
-    const content = await page.locator('body').textContent();
-    expect(content?.toLowerCase()).toMatch(/video|lista|empty|no hay/i);
+  test('should navigate between dashboard, videos and analyses', async ({ page }) => {
+    await page.goto('/');
+
+    await page.getByRole('button', { name: 'Videos' }).click();
+    await expect(page).toHaveURL(/\/videos$/);
+    await expect(page.getByRole('heading', { name: 'Videos', exact: true })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Análisis' }).click();
+    await expect(page).toHaveURL(/\/analyses$/);
+    await expect(page.getByRole('heading', { name: 'Análisis' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Dashboard' }).click();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.getByTestId('dashboard-title')).toBeVisible();
   });
 });
 
-test.describe('Dashboard Flow', () => {
-  test('should display dashboard with stats', async ({ page }) => {
-    await page.goto('/');
-    
-    // Wait for dashboard to load
-    await page.waitForLoadState('networkidle');
-    
-    // Check for dashboard elements
-    const bodyText = await page.locator('body').textContent();
-    expect(bodyText?.toLowerCase()).toMatch(/dashboard|estadísticas|stats|videos|análisis/i);
-  });
+test.describe('Videos Flow', () => {
+  test('should list and stream a freshly uploaded video', async ({ page, request }) => {
+    const createdVideo = await createVideoFixture(request);
 
-  test('should navigate between pages', async ({ page }) => {
-    // Start at home
-    await page.goto('/');
-    
-    // Try to navigate to videos
-    const videosLink = page.locator('a[href*="video"], nav >> text=/video/i, button:has-text(/video/i)').first();
-    if (await videosLink.isVisible().catch(() => false)) {
-      await videosLink.click();
-      await expect(page).toHaveURL(/.*videos.*/);
-    }
-    
-    // Try to navigate to analyses
-    await page.goto('/');
-    const analysesLink = page.locator('a[href*="analys"], nav >> text=/análisis|analysis/i').first();
-    if (await analysesLink.isVisible().catch(() => false)) {
-      await analysesLink.click();
-      await expect(page).toHaveURL(/.*analys.*/);
+    try {
+      await page.goto('/videos');
+      await expect(page.getByRole('heading', { name: 'Videos', exact: true })).toBeVisible();
+
+      const videoEntry = page.getByText(createdVideo.name).first();
+      await expect(videoEntry).toBeVisible();
+
+      const streamResponsePromise = page.waitForResponse((response) =>
+        response.url().includes(`/api/videos/${createdVideo.id}/stream`) &&
+        [200, 206].includes(response.status())
+      );
+
+      await videoEntry.click();
+
+      await expect(page.getByRole('heading', { name: createdVideo.name, exact: true })).toBeVisible();
+      await expect(page.locator('video')).toBeVisible();
+
+      const streamResponse = await streamResponsePromise;
+      expect(streamResponse.ok()).toBe(true);
+    } finally {
+      await request.delete(`${apiBaseUrl}/api/videos/${createdVideo.id}`);
     }
   });
 });
 
 test.describe('API Health Check', () => {
   test('backend API should be accessible', async ({ request }) => {
-    const response = await request.get('http://localhost:5000/api/health');
+    const response = await request.get(`${apiBaseUrl}/api/health`);
     expect(response.status()).toBe(200);
-    
+
     const body = await response.json();
     expect(body).toHaveProperty('success', true);
     expect(body).toHaveProperty('message');
   });
 
   test('should get dashboard stats from API', async ({ request }) => {
-    const response = await request.get('http://localhost:5000/api/dashboard/stats');
+    const response = await request.get(`${apiBaseUrl}/api/dashboard/stats`);
     expect(response.status()).toBe(200);
-    
+
     const body = await response.json();
     expect(body).toHaveProperty('success', true);
     expect(body).toHaveProperty('data');
