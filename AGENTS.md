@@ -122,6 +122,7 @@ AnalizadorPadel/
 
 - Validaciones de integración entre componentes deben hacerse con una comprobación real del flujo completo, no solo con builds, tests unitarios o checks aislados por servicio.
 - Antes de concluir que un entorno, puerto o dependencia está bloqueado, intentar la ejecución real del flujo esperado y validar el resultado observable.
+- No concluir que el backend falló solo porque una comprobación dentro del sandbox no pudo conectarse,en este entorno puede haber limitaciones del sandbox sobre loopback y puertos. Si la validación en sandbox es ambigua, repetir la ejecución fuera del sandbox antes de diagnosticar un problema de binding o red.
 - Cuando se hagan cambios estructurales o refactors grandes, avanzar en fases pequeñas y validar después de cada una con las verificaciones principales del proyecto.
 - No incluir en commits artefactos generados de build o tooling salvo que exista una razón explícita para versionarlos.
 
