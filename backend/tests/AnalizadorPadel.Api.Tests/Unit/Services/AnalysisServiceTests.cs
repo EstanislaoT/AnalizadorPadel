@@ -14,7 +14,7 @@ public class AnalysisServiceTests : TestBase
 {
     private readonly Mock<IWebHostEnvironment> _envMock;
     private readonly Mock<ILogger<AnalysisService>> _loggerMock;
-    private readonly Mock<VideoService> _videoServiceMock;
+    private readonly Mock<IVideoService> _videoServiceMock;
     private readonly DbContextOptions<PadelDbContext> _dbOptions;
 
     public AnalysisServiceTests()
@@ -22,10 +22,7 @@ public class AnalysisServiceTests : TestBase
         _envMock = new Mock<IWebHostEnvironment>();
         _envMock.Setup(e => e.ContentRootPath).Returns(Path.GetTempPath());
         _loggerMock = new Mock<ILogger<AnalysisService>>();
-        _videoServiceMock = new Mock<VideoService>(
-            Mock.Of<IDbContextFactory<PadelDbContext>>(),
-            _envMock.Object,
-            Mock.Of<ILogger<VideoService>>());
+        _videoServiceMock = new Mock<IVideoService>();
 
         _dbOptions = new DbContextOptionsBuilder<PadelDbContext>()
             .UseInMemoryDatabase($"TestDb_{Guid.NewGuid()}")

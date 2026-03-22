@@ -54,7 +54,7 @@ try
     });
 
     // Register services
-    builder.Services.AddScoped<VideoService>();
+    builder.Services.AddScoped<IVideoService, VideoService>();
     builder.Services.AddScoped<AnalysisService>();
 
     var app = builder.Build();

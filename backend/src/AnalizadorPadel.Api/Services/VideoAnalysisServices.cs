@@ -10,7 +10,7 @@ namespace AnalizadorPadel.Api.Services;
 /// <summary>
 /// Servicio para gestión de videos - Persistencia con EF Core + SQLite
 /// </summary>
-public class VideoService
+public class VideoService : IVideoService
 {
     private readonly IDbContextFactory<PadelDbContext> _dbFactory;
     private readonly string _uploadsPath;
@@ -189,14 +189,14 @@ public class AnalysisService
 {
     private readonly IDbContextFactory<PadelDbContext> _dbFactory;
     private readonly string _outputPath;
-    private readonly VideoService _videoService;
+    private readonly IVideoService _videoService;
     private readonly ILogger<AnalysisService> _logger;
     private readonly JsonSerializerOptions _jsonOptions;
 
     public AnalysisService(
         IDbContextFactory<PadelDbContext> dbFactory,
         IWebHostEnvironment env,
-        VideoService videoService,
+        IVideoService videoService,
         ILogger<AnalysisService> logger)
     {
         _dbFactory = dbFactory;
