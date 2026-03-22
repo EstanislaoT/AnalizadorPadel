@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { Box, Grid, Card, CardContent, Typography, CircularProgress, Alert, List, ListItem, ListItemText, Chip, Paper } from '@mui/material';
 import { VideoLibrary, Analytics, CheckCircle, TrendingUp } from '@mui/icons-material';
-import { useDashboardStore } from '../../store/dashboardStore';
+import { useDashboardStore } from '../store/dashboardStore';
 
 export const Dashboard: React.FC = () => {
   const { stats, loading, error, fetchStats } = useDashboardStore();

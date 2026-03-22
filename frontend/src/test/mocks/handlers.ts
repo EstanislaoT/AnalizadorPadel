@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw';
-import type { components } from '../../services/api/generated/types';
+import type { components } from '../../shared/services/api/generated/types';
 
 // Type aliases for convenience
 type VideoDto = components['schemas']['VideoDto'];

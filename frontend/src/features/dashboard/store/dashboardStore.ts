@@ -1,7 +1,7 @@
 import { create } from 'zustand';
-import { AnalizadorPadelApiService } from '../services/api/generated/services/AnalizadorPadelApiService';
-import { DashboardStats } from '../services/api/generated/models/DashboardStats';
-import { ApiResponseOfDashboardStats } from '../services/api/generated/models/ApiResponseOfDashboardStats';
+import { AnalizadorPadelApiService } from '../../../shared/services/api/generated/services/AnalizadorPadelApiService';
+import { DashboardStats } from '../../../shared/services/api/generated/models/DashboardStats';
+import { ApiResponseOfDashboardStats } from '../../../shared/services/api/generated/models/ApiResponseOfDashboardStats';
 
 interface DashboardStore {
   stats: DashboardStats | null;

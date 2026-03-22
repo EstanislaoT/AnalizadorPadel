@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "codegen": "openapi-typescript ./src/services/api/openapi.json --output ./src/services/api/generated/types.ts",
+    "codegen": "openapi-typescript ./src/shared/services/api/openapi.json --output ./src/shared/services/api/generated/types.ts",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "coverage": "vitest run --coverage"

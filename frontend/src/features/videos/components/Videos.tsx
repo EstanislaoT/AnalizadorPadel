@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Grid, Typography, CircularProgress, Alert, List, ListItem, ListItemButton, ListItemText, Chip, Paper } from '@mui/material';
-import { AnalizadorPadelApiService } from '../services/api/generated/services/AnalizadorPadelApiService';
-import VideoPlayer from '../components/VideoPlayer/VideoPlayer';
-import type { VideoDto } from '../services/api/generated/models/VideoDto';
+import VideoPlayer from '../../../shared/components/VideoPlayer/VideoPlayer';
+import { AnalizadorPadelApiService } from '../../../shared/services/api/generated/services/AnalizadorPadelApiService';
+import type { VideoDto } from '../../../shared/services/api/generated/models/VideoDto';
 
 export const Videos: React.FC = () => {
   const [videos, setVideos] = useState<VideoDto[]>([]);

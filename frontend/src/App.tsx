@@ -1,10 +1,10 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
-import { Layout } from './components/Layout';
-import { Dashboard } from './pages/Dashboard/Dashboard';
-import { Videos } from './pages/Videos';
-import { Analyses } from './pages/Analyses';
-import { Reports } from './pages/Reports';
+import { Analyses } from './features/analyses/components/Analyses';
+import { Dashboard } from './features/dashboard/components/Dashboard';
+import { Reports } from './features/reports/components/Reports';
+import { Videos } from './features/videos/components/Videos';
+import { Layout } from './shared/components/Layout';
 
 const theme = createTheme({
   palette: {
