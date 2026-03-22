@@ -38,17 +38,19 @@ COPY --from=build /app/publish .
 
 # Copy Python scripts and models
 COPY python-scripts/ /app/python-scripts/
-COPY models/ /app/models/
+COPY ml-models/ /app/ml-models/
 
 # Create required directories
-RUN mkdir -p /app/uploads /app/outputs /app/logs
+RUN mkdir -p /app/var/uploads /app/var/outputs /app/var/logs
 
 # Environment variables
 ENV ASPNETCORE_URLS=http://+:5000
 ENV ASPNETCORE_ENVIRONMENT=Production
 ENV ConnectionStrings__DefaultConnection="Data Source=/app/data/padel.db"
 ENV PYTHON_SCRIPTS_PATH=/app/python-scripts
-ENV UPLOADS_PATH=/app/uploads
+ENV Storage__UploadsPath=/app/var/uploads
+ENV Storage__OutputsPath=/app/var/outputs
+ENV Storage__LogsPath=/app/var/logs
 
 EXPOSE 5000
 

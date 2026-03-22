@@ -6,6 +6,7 @@ using AnalizadorPadel.Api.Tests.Infrastructure;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
 using Moq;
 using Microsoft.EntityFrameworkCore.Storage;
 
@@ -14,6 +15,7 @@ namespace AnalizadorPadel.Api.Tests.Unit.Services;
 public class VideoServiceTests : TestBase
 {
     private readonly Mock<IWebHostEnvironment> _envMock;
+    private readonly IConfiguration _configuration;
     private readonly Mock<ILogger<VideoService>> _loggerMock;
     private readonly DbContextOptions<PadelDbContext> _dbOptions;
     private readonly InMemoryDatabaseRoot _databaseRoot;
@@ -23,6 +25,7 @@ public class VideoServiceTests : TestBase
     {
         _envMock = new Mock<IWebHostEnvironment>();
         _envMock.Setup(e => e.ContentRootPath).Returns(Path.GetTempPath());
+        _configuration = new ConfigurationBuilder().AddInMemoryCollection().Build();
         _loggerMock = new Mock<ILogger<VideoService>>();
         _databaseRoot = new InMemoryDatabaseRoot();
         _databaseName = $"TestDb_{Guid.NewGuid()}";
@@ -42,7 +45,7 @@ public class VideoServiceTests : TestBase
         factory.Setup(f => f.CreateDbContextAsync(It.IsAny<CancellationToken>()))
                .ReturnsAsync(() => new PadelDbContext(_dbOptions));
 
-        var service = new VideoService(factory.Object, _envMock.Object, _loggerMock.Object);
+        var service = new VideoService(factory.Object, _envMock.Object, _configuration, _loggerMock.Object);
         return (service, dbContext);
     }
 

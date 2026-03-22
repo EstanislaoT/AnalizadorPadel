@@ -23,7 +23,7 @@ AnalizadorPadel/
 ├── backend/                 # API .NET (Nuxt/ASP.NET Core)
 ├── frontend/                # React app
 ├── scripts/                 # Python processing (spikes evolucionados)
-├── models/                  # Modelos ML (YOLO)
+├── ml-models/               # Modelos ML (YOLO)
 ├── infrastructure/          # Docker, configs
 ├── docs/                    # Documentación
 ├── tests/                   # Tests de integración
@@ -78,9 +78,9 @@ scripts/
 └── README.md
 ```
 
-#### models/
+#### ml-models/
 ```
-models/
+ml-models/
 └── yolov8m.pt
 ```
 
@@ -105,7 +105,7 @@ infrastructure/
 
 ### Negativas
 - Requiere configurar múltiples proyectos en IDE
-- Path resolution entre carpetas ( ../models )
+- Path resolution entre carpetas ( ../ml-models )
 
 ### Neutrales
 - Necesita disciplina para mantener estructura

@@ -318,7 +318,7 @@ import cv2
 import json
 import sys
 
-model = YOLO('models/yolov8n.pt')
+model = YOLO('ml-models/yolov8n.pt')
 
 def process_video(video_path):
     cap = cv2.VideoCapture(video_path)
@@ -416,7 +416,7 @@ AnalizadorPadel/
 │   ├── Dockerfile.frontend             # Nginx + React build
 │   └── nginx.conf                      # Configuración Nginx
 ├── docker-compose.yml                  # Orquestación de contenedores
-├── models/                             # Modelos ML (YOLO)
+├── ml-models/                          # Modelos ML (YOLO)
 ├── spikes/                             # Investigaciones y spikes
 ├── docs/                               # Documentación
 │   ├── ADR/                            # Architecture Decision Records

@@ -12,12 +12,14 @@ services:
       - ASPNETCORE_ENVIRONMENT=Production
       - ConnectionStrings__DefaultConnection=Data Source=/app/data/padel.db
       - PYTHON_SCRIPTS_PATH=/app/python-scripts
-      - UPLOADS_PATH=/app/uploads
+      - Storage__UploadsPath=/app/var/uploads
+      - Storage__OutputsPath=/app/var/outputs
+      - Storage__LogsPath=/app/var/logs
     volumes:
       - padel-data:/app/data
-      - padel-uploads:/app/uploads
-      - padel-outputs:/app/outputs
-      - padel-logs:/app/logs
+      - padel-uploads:/app/var/uploads
+      - padel-outputs:/app/var/outputs
+      - padel-logs:/app/var/logs
     ports:
       - "5001:5000"  # API exposed on 5001 (5000 used by AirPlay)  # Exposed for debugging; in production, only via nginx
     restart: unless-stopped

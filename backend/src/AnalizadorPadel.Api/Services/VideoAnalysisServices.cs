@@ -3,9 +3,64 @@ using AnalizadorPadel.Api.Data;
 using AnalizadorPadel.Api.Models.DTOs;
 using AnalizadorPadel.Api.Models.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace AnalizadorPadel.Api.Services;
+
+internal static class PathConfigurationHelper
+{
+    public static string GetConfiguredStoragePath(IWebHostEnvironment env, IConfiguration configuration, string configurationKey, string folderName)
+    {
+        var configured = configuration[configurationKey];
+        if (!string.IsNullOrWhiteSpace(configured))
+        {
+            return configured;
+        }
+
+        return Path.Combine(GetRepositoryRootOrContentRoot(env), "var", folderName);
+    }
+
+    public static string GetRepositoryScopedPath(IWebHostEnvironment env, IConfiguration configuration, string configurationKey, string folderName)
+    {
+        var configured = configuration[configurationKey];
+        if (!string.IsNullOrWhiteSpace(configured))
+        {
+            return configured;
+        }
+
+        return Path.Combine(GetRepositoryRootOrContentRoot(env), folderName);
+    }
+
+    public static string GetRepositoryScopedFile(IWebHostEnvironment env, IConfiguration configuration, string configurationKey, params string[] pathSegments)
+    {
+        var configured = configuration[configurationKey];
+        if (!string.IsNullOrWhiteSpace(configured))
+        {
+            return configured;
+        }
+
+        return Path.Combine(new[] { GetRepositoryRootOrContentRoot(env) }.Concat(pathSegments).ToArray());
+    }
+
+    private static string GetRepositoryRootOrContentRoot(IWebHostEnvironment env)
+    {
+        var current = new DirectoryInfo(env.ContentRootPath);
+
+        while (current != null)
+        {
+            if (File.Exists(Path.Combine(current.FullName, "AnalizadorPadel.sln")) ||
+                Directory.Exists(Path.Combine(current.FullName, ".git")))
+            {
+                return current.FullName;
+            }
+
+            current = current.Parent;
+        }
+
+        return env.ContentRootPath;
+    }
+}
 
 /// <summary>
 /// Servicio para gestión de videos - Persistencia con EF Core + SQLite
@@ -16,10 +71,14 @@ public class VideoService : IVideoService
     private readonly string _uploadsPath;
     private readonly ILogger<VideoService> _logger;
 
-    public VideoService(IDbContextFactory<PadelDbContext> dbFactory, IWebHostEnvironment env, ILogger<VideoService> logger)
+    public VideoService(
+        IDbContextFactory<PadelDbContext> dbFactory,
+        IWebHostEnvironment env,
+        IConfiguration configuration,
+        ILogger<VideoService> logger)
     {
         _dbFactory = dbFactory;
-        _uploadsPath = Path.Combine(env.ContentRootPath, "uploads");
+        _uploadsPath = PathConfigurationHelper.GetConfiguredStoragePath(env, configuration, "Storage:UploadsPath", "uploads");
         _logger = logger;
         Directory.CreateDirectory(_uploadsPath);
     }
@@ -189,6 +248,8 @@ public class AnalysisService
 {
     private readonly IDbContextFactory<PadelDbContext> _dbFactory;
     private readonly string _outputPath;
+    private readonly string _modelsPath;
+    private readonly string _pythonScriptPath;
     private readonly IVideoService _videoService;
     private readonly ILogger<AnalysisService> _logger;
     private readonly JsonSerializerOptions _jsonOptions;
@@ -196,11 +257,14 @@ public class AnalysisService
     public AnalysisService(
         IDbContextFactory<PadelDbContext> dbFactory,
         IWebHostEnvironment env,
+        IConfiguration configuration,
         IVideoService videoService,
         ILogger<AnalysisService> logger)
     {
         _dbFactory = dbFactory;
-        _outputPath = Path.Combine(env.ContentRootPath, "outputs");
+        _outputPath = PathConfigurationHelper.GetConfiguredStoragePath(env, configuration, "Storage:OutputsPath", "outputs");
+        _modelsPath = PathConfigurationHelper.GetRepositoryScopedPath(env, configuration, "Processing:ModelsPath", "ml-models");
+        _pythonScriptPath = PathConfigurationHelper.GetRepositoryScopedFile(env, configuration, "Processing:PythonScriptPath", "python-scripts", "process_video.py");
         _videoService = videoService;
         _logger = logger;
         Directory.CreateDirectory(_outputPath);
@@ -261,18 +325,16 @@ public class AnalysisService
         try
         {
             // Prepare paths for Python script
-            var modelsPath = Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "..", "models");
-            var pythonScriptPath = Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "..", "python-scripts", "process_video.py");
             var resultPath = Path.Combine(_outputPath, $"analysis_{analysisId}_result.json");
 
             _logger.LogInformation("Running Python analysis: script={Script}, video={Video}, output={Output}",
-                pythonScriptPath, videoPath, resultPath);
+                _pythonScriptPath, videoPath, resultPath);
 
             // Execute Python script
             var processInfo = new System.Diagnostics.ProcessStartInfo
             {
                 FileName = "python3",
-                Arguments = $"\"{pythonScriptPath}\" \"{videoPath}\" \"{resultPath}\" \"{modelsPath}\"",
+                Arguments = $"\"{_pythonScriptPath}\" \"{videoPath}\" \"{resultPath}\" \"{_modelsPath}\"",
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -471,4 +533,5 @@ public class AnalysisService
             Result: result
         );
     }
+
 }

@@ -132,7 +132,7 @@ await Task.Run(() => process.WaitForExit(600000)); // 10 min timeout
 ```dockerfile
 # En el contenedor .NET
 RUN apt-get update && apt-get install -y python3 python3-pip
-COPY models/ /app/models/
+COPY ml-models/ /app/ml-models/
 COPY scripts/ /app/scripts/
 RUN pip3 install -r scripts/requirements.txt
 ```
@@ -168,7 +168,7 @@ RUN pip3 install -r scripts/requirements.txt
 ## 📁 Archivos Generados
 
 - `spikes/spike4/spike4_subprocess_test.py` - Script de pruebas automatizadas
-- `models/yolov8m.pt` - Modelo YOLO descargado automáticamente (49.7MB)
+- `ml-models/yolov8m.pt` - Modelo YOLO descargado automáticamente (49.7MB)
 
 ---
 

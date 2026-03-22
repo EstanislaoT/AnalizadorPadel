@@ -32,7 +32,7 @@ AnalizadorPadel/
 ├── backend/
 ├── frontend/
 ├── scripts/
-├── models/
+├── ml-models/
 ├── infrastructure/
 ├── docs/
 ├── tests/

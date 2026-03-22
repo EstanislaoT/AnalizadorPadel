@@ -7,21 +7,28 @@ using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 using Serilog;
 
-// Configure Serilog
-Log.Logger = new LoggerConfiguration()
-    .MinimumLevel.Information()
-    .MinimumLevel.Override("Microsoft.AspNetCore", Serilog.Events.LogEventLevel.Warning)
-    .MinimumLevel.Override("Microsoft.EntityFrameworkCore", Serilog.Events.LogEventLevel.Warning)
-    .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
-    .WriteTo.File("logs/padel-.log",
-        rollingInterval: RollingInterval.Day,
-        retainedFileCountLimit: 7,
-        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}")
-    .CreateLogger();
-
 try
 {
     var builder = WebApplication.CreateBuilder(args);
+
+    var logsPath = builder.Configuration["Storage:LogsPath"];
+    if (string.IsNullOrWhiteSpace(logsPath))
+    {
+        logsPath = ProgramPathDefaults.GetDefaultStoragePath("logs");
+    }
+    Directory.CreateDirectory(logsPath);
+
+    Log.Logger = new LoggerConfiguration()
+        .ReadFrom.Configuration(builder.Configuration)
+        .MinimumLevel.Information()
+        .MinimumLevel.Override("Microsoft.AspNetCore", Serilog.Events.LogEventLevel.Warning)
+        .MinimumLevel.Override("Microsoft.EntityFrameworkCore", Serilog.Events.LogEventLevel.Warning)
+        .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
+        .WriteTo.File(Path.Combine(logsPath, "padel-.log"),
+            rollingInterval: RollingInterval.Day,
+            retainedFileCountLimit: 7,
+            outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}")
+        .CreateLogger();
 
     // Use Serilog
     builder.Host.UseSerilog();
@@ -449,3 +456,24 @@ finally
 
 // Make Program public for integration tests
 public partial class Program { }
+
+internal static class ProgramPathDefaults
+{
+    public static string GetDefaultStoragePath(string folderName)
+    {
+        var current = new DirectoryInfo(Directory.GetCurrentDirectory());
+
+        while (current != null)
+        {
+            var solutionPath = Path.Combine(current.FullName, "AnalizadorPadel.sln");
+            if (File.Exists(solutionPath) || Directory.Exists(Path.Combine(current.FullName, ".git")))
+            {
+                return Path.Combine(current.FullName, "var", folderName);
+            }
+
+            current = current.Parent;
+        }
+
+        return Path.Combine(Directory.GetCurrentDirectory(), "var", folderName);
+    }
+}

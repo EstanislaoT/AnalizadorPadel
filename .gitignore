@@ -214,14 +214,13 @@ $RECYCLE.BIN/
 # Analysis outputs
 backend/src/AnalizadorPadel.Api/outputs/
 backend/src/AnalizadorPadel.Api/uploads/
+var/uploads/
+var/outputs/
+var/logs/
 
 # Uploaded videos
 backend/uploads/*
 !backend/uploads/.gitkeep
-
-# YOLO models (large files)
-backend/models/*.pt
-!backend/models/.gitkeep
 
 # Generated OpenAPI
 backend/openapi.json
@@ -238,10 +237,10 @@ test-videos/*.mov
 # Spike outputs
 runs/
 
-# YOLO model weights (keep in models/)
+# YOLO model weights (keep in ml-models/)
 *.pt
-models/*.pt
-!models/README.md
+ml-models/*.pt
+!ml-models/README.md
 
 # Temporary processing files
 *.tmp
