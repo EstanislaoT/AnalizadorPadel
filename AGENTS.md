@@ -65,18 +65,13 @@
 AnalizadorPadel/
 ├── backend/
 │   ├── src/AnalizadorPadel.Api/          # API .NET con Minimal APIs
-│   │   ├── Program.cs                    # Endpoints y configuración
-│   │   ├── Data/PadelDbContext.cs        # EF Core + SQLite
-│   │   ├── Models/Entities/              # VideoEntity, AnalysisEntity
-│   │   ├── Models/DTOs/                  # ApiDtos.cs
-│   │   └── Services/                     # VideoService, AnalysisService
+│   │   └── ...                           # Configuración, servicios y modelos
 │   └── tests/AnalizadorPadel.Api.Tests/  # Tests BDD (SpecFlow) + TDD
 ├── frontend/
 │   ├── src/
-│   │   ├── components/                   # Layout, VideoPlayer
-│   │   ├── pages/                        # Dashboard, Videos, Analyses, Reports
-│   │   ├── services/api/generated/       # Cliente TypeScript generado
-│   │   └── store/                        # Zustand stores
+│   │   ├── features/                     # Pantallas y lógica por dominio
+│   │   ├── shared/                       # Componentes y servicios compartidos
+│   │   └── test/                         # Mocks y setup de tests
 │   └── package.json
 ├── python-scripts/
 │   ├── process_video.py                  # Script YOLO para detección
@@ -120,139 +115,17 @@ AnalizadorPadel/
 
 ---
 
-## 🔌 API Endpoints
+## ✅ Validación y Cambios Incrementales
 
-| Método | Endpoint | Descripción |
-|--------|----------|-------------|
-| POST | `/api/videos` | Subir nuevo video |
-| GET | `/api/videos` | Listar videos |
-| GET | `/api/videos/{id}` | Obtener video por ID |
-| GET | `/api/videos/{id}/stream` | Stream de video (Range requests) |
-| DELETE | `/api/videos/{id}` | Eliminar video |
-| POST | `/api/videos/{id}/analyse` | Iniciar análisis del video |
-| GET | `/api/analyses` | Listar análisis |
-| GET | `/api/analyses/{id}` | Obtener análisis por ID |
-| GET | `/api/analyses/{id}/stats` | Estadísticas del análisis |
-| GET | `/api/analyses/{id}/heatmap` | Datos del heatmap |
-| GET | `/api/analyses/{id}/report` | Reporte del análisis |
-| GET | `/api/dashboard/stats` | Estadísticas del dashboard |
-| GET | `/api/health` | Health check |
+- Validaciones de integración entre componentes deben hacerse con una comprobación real del flujo completo, no solo con builds, tests unitarios o checks aislados por servicio.
+- Antes de concluir que un entorno, puerto o dependencia está bloqueado, intentar la ejecución real del flujo esperado y validar el resultado observable.
+- Cuando se hagan cambios estructurales o refactors grandes, avanzar en fases pequeñas y validar después de cada una con las verificaciones principales del proyecto.
+- No incluir en commits artefactos generados de build o tooling salvo que exista una razón explícita para versionarlos.
 
----
+## 📌 Guías por Capa
 
-## 🗄️ Modelo de Datos
-
-### Entidades Principales
-
-```csharp
-// VideoEntity
-public class VideoEntity
-{
-    public int Id { get; set; }
-    public string Name { get; set; }
-    public string? Description { get; set; }
-    public string FilePath { get; set; }
-    public long FileSizeBytes { get; set; }
-    public string FileExtension { get; set; }
-    public string Status { get; set; }  // Uploaded, Processing, Completed, Failed
-    public DateTime UploadedAt { get; set; }
-    public int? AnalysisId { get; set; }
-}
-
-// AnalysisEntity
-public class AnalysisEntity
-{
-    public int Id { get; set; }
-    public int VideoId { get; set; }
-    public string Status { get; set; }  // Pending, Running, Completed, Failed
-    public DateTime StartedAt { get; set; }
-    public DateTime? CompletedAt { get; set; }
-    public string? ErrorMessage { get; set; }
-    
-    // Resultados del análisis
-    public int? TotalFrames { get; set; }
-    public int? PlayersDetected { get; set; }
-    public double? AvgDetectionsPerFrame { get; set; }
-    public int? FramesWith4Players { get; set; }
-    public double? DetectionRatePercent { get; set; }
-    public double? ProcessingTimeSeconds { get; set; }
-    public string? ModelUsed { get; set; }
-}
-```
-
----
-
-## 🎥 Pipeline de Procesamiento de Video
-
-```
-Video (.mp4)
-    │
-    ▼
-Backend .NET recibe el video
-    │
-    ▼
-Guarda en /uploads + registro en SQLite
-    │
-    ▼
-Llama a Python subprocess
-    │
-    ▼
-YOLO v8 procesa el video
-    ├── Detecta personas (clase 0)
-    ├── Cuenta detecciones por frame
-    └── Calcula métricas
-    │
-    ▼
-Resultados JSON guardados en /outputs
-    │
-    ▼
-Backend actualiza AnalysisEntity en SQLite
-    │
-    ▼
-Frontend consulta y visualiza resultados
-```
-
-### Parámetros de Procesamiento
-
-| Parámetro | Valor | Justificación |
-|-----------|-------|---------------|
-| Modelo YOLO | yolov8m.pt | Balance precisión/velocidad |
-| Clases detectadas | [0] (personas) | Solo jugadores |
-| Timeout | 10 minutos | Límite razonable para partido |
-| Máximo tamaño | 500MB | Evita videos muy grandes |
-
----
-
-## 🧪 Estrategia de Testing
-
-### Enfoque Híbrido: BDD + TDD
-
-| Tipo | Herramienta | Uso |
-|------|-------------|-----|
-| **BDD** | SpecFlow | Features de usuario (User Stories) |
-| **TDD** | xUnit + FluentAssertions | Lógica de negocio |
-| **Mocking** | Moq | Dependencias en tests unitarios |
-
-### User Stories Implementadas
-
-1. **US-1**: Subir un Video de Partido
-2. **US-2**: Ver Estadísticas del Partido
-
-### Estructura de Tests
-
-```
-backend/tests/AnalizadorPadel.Api.Tests/
-├── BDD/
-│   ├── Features/              # Archivos .feature (Gherkin)
-│   │   ├── US-1-SubirVideo.feature
-│   │   └── US-2-VerEstadisticas.feature
-│   └── StepDefinitions/       # Implementación de steps
-├── Integration/               # Tests de integración
-│   ├── VideoEndpointsTests.cs
-│   └── AnalysisEndpointsTests.cs
-└── Unit/                      # Tests unitarios
-    └── Services/
-```
+- `frontend/AGENTS.md`: validación UI, estructura `features/shared/test`, integración con API y convenciones de desarrollo frontend.
+- `backend/AGENTS.md`: endpoints, modelos, persistencia, rutas runtime, CORS y validación del backend.
 
 ---
 
@@ -281,9 +154,8 @@ docker-compose up -d
 # Ver logs
 docker-compose logs -f
 
-# Desarrollo local (sin Docker)
-cd backend/src/AnalizadorPadel.Api && dotnet run  # :5000
-cd frontend && npm run dev                         # :5173
+# Desarrollo local
+Ver AGENTS.md de cada capa para comandos y validaciones específicas
 ```
 
 ---
@@ -334,35 +206,6 @@ cd frontend && npm run dev                         # :5173
 - Torneos virtuales
 - Comunidad y rankings
 - Integración con wearables
-
----
-
-## 🔧 Comandos Útiles para Desarrollo
-
-```bash
-# Backend
-cd backend/src/AnalizadorPadel.Api
-dotnet run                    # Iniciar API
-dotnet test                   # Ejecutar tests
-dotnet ef migrations add <name>  # Crear migración
-
-# Frontend
-cd frontend
-npm install                   # Instalar dependencias
-npm run dev                   # Iniciar dev server
-npm run test                  # Ejecutar tests
-npm run codegen               # Generar tipos desde OpenAPI
-
-# Docker
-docker-compose up -d          # Iniciar todos los servicios
-docker-compose logs -f api    # Ver logs del backend
-docker-compose down -v        # Detener y eliminar volúmenes
-
-# Tests E2E
-cd e2e
-npm install
-npx playwright test           # Ejecutar tests E2E
-```
 
 ---
 
